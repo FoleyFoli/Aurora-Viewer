@@ -1,3 +1,5 @@
+**P3 rendering fork** · Based on Aurora `v0.9.13-beta.20261121.2`. [Rendering controls](docs/p3-rendering/README.md) · [Visual test cases](docs/p3-rendering/VALIDATION.md)
+
 <div align="center">
 
 <img src="assets/branding/aurora-logo.svg" alt="Aurora Viewer" width="180">

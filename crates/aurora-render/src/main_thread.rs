@@ -1678,6 +1678,9 @@ impl Renderer {
                 gpu_pixels: self.last_stats.gpu_pixels,
                 gpu_elements: self.last_stats.gpu_elements,
                 shadow: ShadowStats {
+                    maps: self.last_stats.shadow.maps,
+                    graded_detail_gpu_ms: self.last_stats.shadow.graded_detail_gpu_ms,
+                    graded_detail_draws: self.last_stats.shadow.graded_detail_draws,
                     gpu_ms: self.last_stats.shadow.gpu_ms,
                     ..Default::default()
                 },

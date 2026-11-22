@@ -35,6 +35,8 @@ pub struct Settings {
     /// FSFocusPointRender (off): a small crosshair on the focus point,
     /// yellow when free and red when locked.
     pub show_focus_point: bool,
+    /// Experimental: use a DoF-specific depth proxy for mostly-opaque blends.
+    pub experimental_alpha_depth_proxy: bool,
     pub focus: FocusMode,
     /// CameraFNumber (9, 1..64).
     pub f_number: f32,
@@ -50,6 +52,12 @@ pub struct Settings {
     /// CameraDoFResScale (0.7, 0.25..1): here the number of samples of the
     /// blur, which is always drawn at half resolution.
     pub quality: f32,
+    /// Experimental: smooth the focus-to-near-blur transition, live.
+    pub experimental_near_transition: bool,
+    /// 0..1: intensity of the extra transitional blur.
+    pub experimental_near_strength: f32,
+    /// Visualize signed circle of confusion: near red, far blue, sharp grey.
+    pub experimental_dof_zones: bool,
 }
 
 impl Default for Settings {
@@ -58,6 +66,7 @@ impl Default for Settings {
             enabled: false,
             in_edit: false,
             show_focus_point: false,
+            experimental_alpha_depth_proxy: false,
             focus: FocusMode::Camera,
             f_number: 9.0,
             focal_length: 50.0,
@@ -65,6 +74,9 @@ impl Default for Settings {
             max_coc: 10.0,
             transition: 0.5,
             quality: 0.7,
+            experimental_near_transition: false,
+            experimental_near_strength: 0.85,
+            experimental_dof_zones: false,
         }
     }
 }
@@ -79,6 +91,7 @@ impl Settings {
         self.max_coc = fix(self.max_coc, 1.0, 64.0, d.max_coc);
         self.transition = fix(self.transition, 0.1, 10.0, d.transition);
         self.quality = fix(self.quality, 0.25, 1.0, d.quality);
+        self.experimental_near_strength = fix(self.experimental_near_strength, 0.0, 1.0, d.experimental_near_strength);
     }
 
     /// Samples of the blur's gather for the quality.
@@ -367,7 +380,12 @@ pub fn lens(s: &Settings, focus: f32, view: View, debug: bool) -> aurora_render:
         // has pixels for each of the window's rows it covers)
         max_coc: s.max_coc * view.height as f32 / view.window_rows.max(1.0),
         samples: s.samples(),
-        debug,
+        near_smooth_strength: if s.experimental_near_transition {
+            s.experimental_near_strength
+        } else {
+            0.0
+        },
+        debug: debug || s.experimental_dof_zones,
         peaking: None,
     }
 }

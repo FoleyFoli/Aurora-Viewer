@@ -343,7 +343,7 @@ pub(crate) fn st_scene_source(device: &wgpu::Device) -> String {
     format!(
         "{}{}\n{}\n{}",
         enable_directive(device),
-        crate::common_shader_source(),
+        crate::common_shader_source(&device.limits()),
         object,
         crate::water_shader_source(&["env.wgsl"], include_str!("shaders/env.wgsl"))
     )
