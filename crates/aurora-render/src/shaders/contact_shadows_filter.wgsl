@@ -10,6 +10,8 @@
 @group(0) @binding(0) var depth_tex: texture_depth_2d;
 @group(0) @binding(1) var mask_tex: texture_2d<f32>;
 @group(0) @binding(2) var out_tex: texture_storage_2d<rgba8unorm, write>;
+// X: zero for Aurora original, one for narrow-gap repair.
+@group(0) @binding(3) var<uniform> integrity_filter_options: vec4<f32>;
 
 // Reversed depth: the far plane (the sky) at 0.
 const FAR_DEPTH: f32 = 0.0;
@@ -68,7 +70,10 @@ fn main(
         return;
     }
     if (SKIP_LIT && atomicLoad(&any_shadow) == 0u) {
-        textureStore(out_tex, p, vec4<f32>(0.0));
+        // Keep the diagnostic channels even when the original fast path
+        // skips the 5x5 smoothing work. The red shadow mask is still zero.
+        let detail = textureLoad(mask_tex, p, 0).gba;
+        textureStore(out_tex, p, vec4<f32>(0.0, detail));
         return;
     }
     let d0 = tile_depth[tile_at(t)];
@@ -93,8 +98,43 @@ fn main(
             weight += w;
         }
     }
+    // Keep the original depth-plane-aware filter on the shadow mask's red
+    // channel only. The centre's ray diagnostics are informational metadata.
+    let detail = textureLoad(mask_tex, p, 0).gba;
+    // Independent, conservative repair of a narrow gap surrounded by
+    // shadow on opposing sides of the SAME fitted depth plane. No growth
+    // from a single boundary; no crossing silhouettes or discontinuities.
+    var bridge = 0.0;
+    let centre_mask = tile_mask[tile_at(t)];
+    if (integrity_filter_options.x > 0.5 && centre_mask >= 0.0 && centre_mask < 0.55) {
+        for (var axis = 0; axis < 4; axis++) {
+            var direction = vec2<i32>(1, 0);
+            if (axis == 1) {
+                direction = vec2<i32>(0, 1);
+            } else if (axis == 2) {
+                direction = vec2<i32>(1, 1);
+            } else if (axis == 3) {
+                direction = vec2<i32>(1, -1);
+            }
+            for (var distance = 1; distance <= 2; distance++) {
+                let offset = direction * distance;
+                let ta = tile_at(t - offset);
+                let tb = tile_at(t + offset);
+                let sa = tile_mask[ta];
+                let sb = tile_mask[tb];
+                let expected_a = d0 - gx * f32(offset.x) - gy * f32(offset.y);
+                let expected_b = d0 + gx * f32(offset.x) + gy * f32(offset.y);
+                let compatible = abs(tile_depth[ta] - expected_a) < tolerance
+                    && abs(tile_depth[tb] - expected_b) < tolerance;
+                if (compatible && sa > 0.72 && sb > 0.72) {
+                    bridge = max(bridge, min(sa, sb) * select(0.70, 0.85, distance == 1));
+                }
+            }
+        }
+    }
+    let integrity_mask = max(sum * (1.0 / max(weight, 1e-6)), bridge);
     // the pixel itself always counts (weight 9 at least)
-    textureStore(out_tex, p, vec4<f32>(sum / weight, 0.0, 0.0, 0.0));
+    textureStore(out_tex, p, vec4<f32>(integrity_mask, detail));
 }
 
 // The mask as it is (`AURORA_CONTACT_SOFT=0`).

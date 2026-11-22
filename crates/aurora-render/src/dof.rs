@@ -269,7 +269,14 @@ impl Dof {
                 Some([r, g, b]) => [r, g, b, 1.0],
                 None => [0.0; 4],
             },
-            band: [params.focus_far.max(params.focus), 0.0, 0.0, 0.0],
+            // The second band channel is an experimental smoother near-field
+            // compositor, controlled live by Preferences instead of an env var.
+            band: [
+                params.focus_far.max(params.focus),
+                params.near_smooth_strength.clamp(0.0, 1.0),
+                0.0,
+                0.0,
+            ],
         };
         queue.write_buffer(&self.buffer, 0, bytemuck::bytes_of(&u));
         self.ensure_targets(device, size, hdr, post);

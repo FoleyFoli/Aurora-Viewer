@@ -1012,7 +1012,7 @@ fn terrain_pbr_shaded(in: TerrainPbrOut) -> Shaded {
         color += material.color.rgb * water_caustic_light(in.world_pos, n) * sh;
         color = apply_fog(water_scene_lit(color, own, in.world_pos), in.world_pos);
     }
-    color = debug_view(color, in.world_pos, n, dist, in.clip.xy);
+    color = debug_view(color, in.world_pos, geo, dist, in.clip.xy);
     return Shaded(vec4<f32>(light_tiles_checked(color, in.world_pos, in.clip.xy), 1.0), n, rough, metal);
 }
 

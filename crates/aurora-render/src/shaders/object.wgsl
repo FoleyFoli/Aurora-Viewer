@@ -1082,6 +1082,11 @@ fn eval_material_base(in: VsOut, front: bool) -> Material {
     // a PBR face without a metallic-roughness map reads the white texture:
     // no occlusion. AURORA_PBR_OCCLUSION=0 (sky_ll.z = 0) leaves it out.
     m.ao = select(1.0, mr_s.r, (rec.flags.x & FLAG_PBR) != 0u && frame.sky_ll.z > 0.5);
+    // Selected glTF foliage only: a floor on the authored occlusion; roughness,
+    // metallic, normals, and all nonmatching PBR materials remain untouched.
+    if (pbr_thin_matches(rec)) {
+        m.ao = max(m.ao, frame.pbr_thin_gain.x);
+    }
     // TE glow is not emissive: it only feeds the glow pass (fs_glow)
     m.emissive = rec.emissive.rgb * srgb_to_linear(em_s.rgb);
     if (deferred_emissive_off() && !hud_pass && (rec.flags.x & (FLAG_PBR | FLAG_ALPHA_BLEND)) == FLAG_PBR) {
@@ -1648,11 +1653,42 @@ fn shade(in: VsOut, front: bool) -> Shaded {
 // Lighting, haze and fog of an evaluated material. Nothing here takes a
 // screen-space derivative (explicit levels and comparisons only): a fragment
 // may be discarded between `eval_material` and this (fs_blend).
+// The material key is a local 64-bit UUID prefix held in unused DrawRecord
+// identity slots. Exact UUID selection is the default; the optional broad
+// PBR double-sided/alpha-mask preview must be explicitly chosen.
+fn pbr_thin_matches(rec: DrawRecord) -> bool {
+    if ((rec.flags.x & FLAG_PBR) == 0u || hud_pass) { return false; }
+    let mode = frame.pbr_thin_key.z;
+    if (mode == 1u) {
+        return any(frame.pbr_thin_key.xy != vec2<u32>(0u)) &&
+            all(rec.identity.yz == frame.pbr_thin_key.xy);
+    }
+    return mode == 2u &&
+        (rec.flags.x & (FLAG_ALPHA_MASK | FLAG_DOUBLE_SIDED)) ==
+            (FLAG_ALPHA_MASK | FLAG_DOUBLE_SIDED);
+}
+
+// Very modest wrapped-backlight approximation for leaf-thin material. Shadow
+// visibility remains in force: no light is added through solid occluders.
+fn pbr_thin_backlight(base: vec3<f32>, geo_n: vec3<f32>, world_pos: vec3<f32>,
+                     view_depth: f32, sun_rgb: vec3<f32>) -> vec3<f32> {
+    let away = max(dot(-normalize(geo_n), normalize(frame.sun_dir.xyz)), 0.0);
+    let response = smoothstep(0.0, 0.85, away);
+    if (response <= 0.0 || frame.pbr_thin_gain.y <= 0.0) { return vec3<f32>(0.0); }
+    // Trace from the sun-facing side rather than the backface normal, which
+    // would bias the shadow lookup away from the light and self-shadow leaves.
+    // Use the cascade, not the camera-space contact mask, for transmitted light.
+    let visibility = shadow_lift(shadow_factor(world_pos, normalize(frame.sun_dir.xyz), view_depth));
+    return base * sun_rgb * visibility * response *
+        (0.35 * frame.pbr_thin_gain.y);
+}
+
 fn shade_material(in: VsOut, m: Material) -> Shaded {
     let rec = records[in.record];
     legacy_glare = 0.0;
     legacy_nan = false;
     surface_occlusion = m.occlusion;
+    avatar_shadow_receiver = (rec.flags.w & FLAG_AVATAR_SHADOW_RECEIVER) != 0u;
     // A blended face opaque to the eye (fs_depth_occlusion, from an
     // opacity of 0.88) is in the occlusion's depth when BLEND_SCREEN_DEPTH,
     // and in the depth the contact shadows read. It takes the screen-space
@@ -1709,6 +1745,9 @@ fn shade_material(in: VsOut, m: Material) -> Shaded {
         if ((rec.flags.x & FLAG_PBR) != 0u) {
             col = ll_classic_pbr(m.color.rgb, m.metallic, m.roughness, m.ao, m.n, v, in.world_pos, sh, in.clip.xy, a);
             local = ll_classic_pbr_local(m.color.rgb, m.metallic, m.roughness, m.n, v, in.world_pos, in.clip.xy);
+            if (pbr_thin_matches(rec)) {
+                col += pbr_thin_backlight(m.color.rgb, m.geo_n, in.world_pos, in.view_depth, ll_sun_linear(a));
+            }
         } else {
             col = ll_classic_sun_ambient(m.color.rgb, m.n, sh, in.clip.xy, a);
             col = legacy_light(col, m.color.rgb, m.unlit, m.legacy_spec, m.legacy_env, m.n, v, in.world_pos, in.clip.xy, shadow_lift(sh), ll_sun_linear(a), 1.0);
@@ -1728,6 +1767,9 @@ fn shade_material(in: VsOut, m: Material) -> Shaded {
         let legacy = (rec.flags.x & FLAG_PBR) == 0u;
         col = shade_pbr(m.color.rgb, m.metallic, m.roughness, m.ao, m.n, v, in.world_pos, sh, in.clip.xy, legacy) + m.emissive;
         own += shade_pbr_local;
+        if (!legacy && pbr_thin_matches(rec)) {
+            col += pbr_thin_backlight(m.color.rgb, m.geo_n, in.world_pos, in.view_depth, frame.sun_color.rgb);
+        }
         if (m.legacy_spec.a > 0.0 || m.legacy_env > 0.0 || m.unlit > 0.0) {
             // legacy_light mixes the local lights' share toward the
             // emissive mask and the environment as the rest
@@ -1741,6 +1783,10 @@ fn shade_material(in: VsOut, m: Material) -> Shaded {
             own = m.emissive + shade_pbr_local * (1.0 - clamp(m.unlit, 0.0, 1.0)) * (1.0 - clamp(m.legacy_env, 0.0, 1.0)) + local_spec;
         }
         col += caustic_light;
+    }
+    if (frame.pbr_thin_key.w != 0u && pbr_thin_matches(rec)) {
+        // Magenta diagnostic overlay: confirms which material UUID matched.
+        col = mix(col, vec3<f32>(0.95, 0.02, 0.72), 0.55);
     }
     if ((rec.flags.x & FLAG_HIGHLIGHT) != 0u) {
         col = mix(col, vec3<f32>(0.55, 0.36, 0.96), 0.35);
@@ -3583,7 +3629,7 @@ struct ShadowOut {
 struct ShadowParams {
     vp: mat4x4<f32>,
     anim_clock: vec4<u32>,  // the animation clocks, as Frame's
-    // x: 1 for the rain prototype's shelter map
+    // x: shelter-map flag, y: dither row mask, zw: world-origin phase in sun-map texels
     kind: vec4<u32>,
 };
 
@@ -3602,8 +3648,8 @@ fn vs_shadow(in: VsIn) -> ShadowOut {
     return out;
 }
 
-// Transparent texels cast no shadow; semi-transparent texels use alternating
-// shadow-map columns. Opaque material modes ignore the texture alpha.
+// Transparent texels cast no shadow. Semi-transparent caster texels
+// retain half coverage. Opaque material modes ignore the texture alpha.
 // Blended faces (a blended face that is also alpha-tested casts like a
 // blended one), as LLPipeline::renderAlphaObjects (pipeline.cpp, LGPL 2.1)
 // draws them:
@@ -3647,7 +3693,15 @@ fn fs_shadow(in: ShadowOut, @builtin(front_facing) front: bool) {
             if (!pbr && !skinned && tex_alpha < 0.598) { discard; }
             if (alpha < 0.05) { discard; }
             let cutoff = select(0.88, 0.598, skinned && !pbr);
-            if (alpha < cutoff && (u32(in.clip.x) % 2u) == 0u) { discard; }
+            if (alpha < cutoff) {
+                // Alternate columns within each row. Vary their phase by row
+                // so a one-column strand can cast at either column parity.
+                // Four-level sun maps subtract a world-anchored texel phase.
+                // Other passes have zero mask and phase for their column rule.
+                let texel = vec2<u32>(in.clip.xy) - shadow_params.kind.zw;
+                let row_phase = countOneBits(texel.y & shadow_params.kind.y);
+                if (((texel.x ^ row_phase) & 1u) == 0u) { discard; }
+            }
         }
     }
 }
