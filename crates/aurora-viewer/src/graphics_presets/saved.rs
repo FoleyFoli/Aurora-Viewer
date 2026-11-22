@@ -642,8 +642,10 @@ mod tests {
 
     #[test]
     fn shadow_profile_capture_canonicalizes_old_defaults_and_preserves_off_tier() {
-        let mut s = Settings::default();
-        s.shadow_quality = 4;
+        let s = Settings {
+            shadow_quality: 4,
+            ..Settings::default()
+        };
         let saved = Saved::capture(&s);
         let mut restored = Settings::default();
         let saved: Saved = serde_json::from_slice(&serde_json::to_vec(&saved).unwrap()).unwrap();
