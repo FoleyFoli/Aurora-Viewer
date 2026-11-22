@@ -1,0 +1,27 @@
+name: Inventory Explorer Windows preflight
+on:
+  push:
+    branches: [validation/inventory-explorer-3f4225d8]
+permissions:
+  contents: read
+jobs:
+  full-check:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out the grid-tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 3f4225d857275df00b28aa1b22fd0e093e4ef14f
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Verify source identity
+        shell: cmd
+        run: |
+          git rev-parse HEAD
+          git rev-parse HEAD | findstr /x 3f4225d857275df00b28aa1b22fd0e093e4ef14f || exit /b 1
+          git diff --exit-code HEAD -- scripts || exit /b 1
+      - name: Run the repository check in Windows PowerShell 5.1
+        shell: cmd
+        run: powershell.exe -NoLogo -NoProfile -NonInteractive -File .\scripts\check.ps1
