@@ -330,6 +330,7 @@ fn action_key(action: &CtxAction) -> String {
         CtxAction::SetOwnerSoundBlock { .. } => "SetOwnerSoundBlock",
         CtxAction::InviteToGroup(..) => "InviteToGroup",
         CtxAction::GiveCallingCard(..) => "GiveCallingCard",
+        CtxAction::ShareInventory { .. } => "ShareInventory",
         CtxAction::CreateLandmark => "CreateLandmark",
         CtxAction::ReportAbuse(..) => "ReportAbuse",
         CtxAction::ToggleBlockObject { .. } => "ToggleBlockObject",

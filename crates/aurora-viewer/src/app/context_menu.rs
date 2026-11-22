@@ -751,6 +751,9 @@ impl App {
             CtxAction::SetOwnerSoundBlock { owner, flag, blocked } => self.set_owner_sound_block(owner, flag, blocked),
             CtxAction::InviteToGroup(id) => self.group_profile_ui.invite.choose_group(vec![id]),
             CtxAction::GiveCallingCard(id) => self.world.offer_calling_card(id),
+            CtxAction::ShareInventory { to, items } => {
+                self.inventory_ui.dialog = Some(crate::ui::inventory::EditDialog::Share(items, vec![to]));
+            }
             CtxAction::ToggleBlockObject { id, name } => {
                 // the whole object is blocked: its root (LLMute of getRootEdit)
                 let root = self

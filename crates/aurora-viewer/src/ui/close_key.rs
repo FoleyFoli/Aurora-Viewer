@@ -84,6 +84,18 @@ fn listed(list: &[(Id, u64)], id: Id, frame: u64) -> bool {
     list.iter().any(|(other, at)| *other == id && at + 1 >= frame)
 }
 
+/// The frontmost registered window in the current or preceding frame. Viewer
+/// toolbars, HUDs and tooltips have layers but do not register as windows.
+pub(crate) fn frontmost_window(ctx: &egui::Context) -> Option<egui::LayerId> {
+    let frame = ctx.cumulative_frame_nr();
+    let shown = ctx.data(|data| data.get_temp::<State>(state_id()))?.shown;
+    ctx.memory(|m| {
+        m.layer_ids()
+            .filter(|layer| layer.order != Order::Background && listed(&shown, layer.id, frame))
+            .last()
+    })
+}
+
 /// At the start of the interface's frame: Ctrl+Shift+W closes every window
 /// drawn on the last frame, and Ctrl+W alone goes to the frontmost. The key
 /// is taken. Nothing with a dialog open (the menu entry is disabled while
@@ -101,25 +113,11 @@ pub fn begin(ctx: &egui::Context) {
         if pressed_alone(ctx, egui::Key::W, shift) && (!state.shown.is_empty() || !state.extra.is_empty()) {
             ctx.input_mut(|i| i.consume_key(shift, egui::Key::W));
             state.all = true;
-        } else if pressed_alone(ctx, egui::Key::W, egui::Modifiers::COMMAND) {
-            // back to front
-            let front = ctx.memory(|m| {
-                m.layer_ids()
-                    // a window's own layer: Middle, or Foreground over the
-                    // photo viewfinder (the poser)
-                    .filter_map(|layer| {
-                        state
-                            .shown
-                            .iter()
-                            .find(|(id, _)| layer.id == *id && layer.order != Order::Background)
-                    })
-                    .map(|(id, _)| *id)
-                    .last()
-            });
-            if let Some(id) = front {
-                ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::W));
-                state.target = Some((id, frame));
-            }
+        } else if pressed_alone(ctx, egui::Key::W, egui::Modifiers::COMMAND)
+            && let Some(layer) = frontmost_window(ctx)
+        {
+            ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::W));
+            state.target = Some((layer.id, frame));
         }
     }
     ctx.data_mut(|d| d.insert_temp(state_id(), state));

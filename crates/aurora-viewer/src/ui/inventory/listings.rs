@@ -362,7 +362,7 @@ mod tests {
                     &Default::default(),
                     &Default::default(),
                     &Default::default(),
-                    false,
+                    crate::settings::InventoryStyle::Aurora,
                 );
             },
         );
@@ -425,7 +425,7 @@ mod tests {
                         &Default::default(),
                         &Default::default(),
                         &Default::default(),
-                        false,
+                        crate::settings::InventoryStyle::Aurora,
                     );
                     let mut window = main.take_listings_panel();
                     let mut panel = Panel {
