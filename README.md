@@ -1,3 +1,7 @@
+> **Inventory Explorer development fork · v0.8.4 · November 21, 2026**
+>
+> This source branch adds an optional tabbed inventory to Aurora Viewer. The upstream Aurora layout remains the default. The download badges below belong to the upstream project. [Explorer user guide](docs/INVENTORY-EXPLORER.md) · [Development guide](docs/INVENTORY-EXPLORER-DEVELOPMENT.md)
+
 <div align="center">
 
 <img src="assets/branding/aurora-logo.svg" alt="Aurora Viewer" width="180">
@@ -994,7 +998,7 @@ Aurora's inventory opens as the usual tree. Drag its edge, or use the widen
 button in its title bar, to get the explorer: the folders move to a column,
 then a details pane, filter chips and a status bar appear. The **CMT** button
 chooses which rights each row shows: yours, the next owner's, both or none.
-Preferences › Aurora › Inventory brings back the Legacy window.
+Choose **Classic window (Legacy)**, **Aurora** or **Explorer** under **Preferences › Aurora › Windows › Inventory**. Explorer adds tabs, pinned folders and collapsible groups. [Using Inventory Explorer](docs/INVENTORY-EXPLORER.md)
 
 The inventory's right-click menu offers "Move to…" for a folder, an item or a
 multiple selection. Type a name in the window's filter, choose the
