@@ -224,7 +224,7 @@ pub fn set(settings: &mut Settings, key: &str, value: Value) -> Result<(), Strin
     patch(&mut doc, key, value)?;
     let mut next: Settings = serde_json::from_value(doc).map_err(|e| e.to_string())?;
     next.keep_session(settings);
-    *settings = next.sanitized();
+    *settings = next.sanitize_values(false);
     Ok(())
 }
 
