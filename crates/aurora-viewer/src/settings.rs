@@ -3383,7 +3383,9 @@ impl Settings {
     }
 
     /// Migrated and bounded, remembering a newer build's file to save over.
-    fn finished(self, newer: Option<(serde_json::Value, Vec<String>)>) -> Settings {
+    fn finished(mut self, newer: Option<(serde_json::Value, Vec<String>)>) -> Settings {
+        // Import implicit legacy sizes on load, not on unrelated debug-setting edits.
+        self.pin_shadow_preferences();
         let mut s = self.sanitized();
         if s.new_profile {
             shadow_profile::reset_all(&mut s);
@@ -3974,7 +3976,17 @@ impl Settings {
             HoverTips::default().delay
         };
         self.shadow_quality = self.shadow_quality.min(4);
-        self.pin_shadow_preferences();
+        self.shadow_resume_quality = if self.shadow_quality > 0 {
+            self.shadow_quality
+        } else {
+            self.shadow_resume_quality.clamp(1, 4)
+        };
+        if self.shadow_map_resolution != 0 {
+            self.shadow_map_resolution = self.shadow_map_size();
+        }
+        if self.three_level_shadow_distance != 0 {
+            self.three_level_shadow_distance = self.three_level_shadow_reach();
+        }
         // Older profiles stored the master separately from the tier, including
         // false + a positive tier. Keep that resolution for the next enable.
         self.shadows = self.shadows && self.shadow_quality != 0;

@@ -371,8 +371,10 @@ mod tests {
                 .iter()
                 .zip(&after)
                 .filter(|(b, a)| b.key != entry.key && b.value != a.value)
-                // the one setting `sanitized` makes follow another
+                // Coupled settings must reach their documented values.
                 .filter(|(b, _)| !(entry.key == "force_midday" && b.key == "time_of_day"))
+                .filter(|(b, a)| !(entry.key == "shadow_quality" && b.key == "shadow_resume_quality" && a.value == json!(s.shadow_quality)))
+                .filter(|(b, a)| !(entry.key == "shadows" && !s.shadows && b.key == "shadow_quality" && a.value == json!(0)))
                 .map(|(b, _)| b.key.as_str())
                 .collect();
             if !others.is_empty() {

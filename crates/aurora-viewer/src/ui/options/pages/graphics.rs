@@ -811,8 +811,7 @@ fn shadow_preferences(cx: &mut Cx) {
                         let custom_changed = ui
                             .horizontal(|ui| {
                                 let mut custom = profile::custom_enabled(s);
-                                let toggled = ui
-                                    .checkbox(&mut custom, tr!("ui-options-preset-custom"))
+                                let toggled = crate::ui::widgets::checkbox(ui, &palette, &mut custom, tr!("ui-options-preset-custom"))
                                     .on_hover_text(tr!("ui-shadow-profile-help"))
                                     .changed();
                                 if toggled {
@@ -951,9 +950,10 @@ fn shadow_preferences(cx: &mut Cx) {
                 "",
             );
             cx.greyed(false);
+            let palette = cx.p;
             cx.row(tr!("common-advanced"), tr!("ui-shadow-profile-advanced-help"), &Nothing, |ui, s| {
                 let mut open = profile::advanced_enabled(s);
-                let checkbox = ui.checkbox(&mut open, "");
+                let checkbox = crate::ui::widgets::checkbox(ui, &palette, &mut open, "");
                 checkbox.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, ui.is_enabled(), open, tr!("common-advanced")));
                 if checkbox.changed() {
                     profile::set_advanced_enabled(s, open);
