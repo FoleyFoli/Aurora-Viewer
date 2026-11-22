@@ -9,10 +9,10 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 180
     steps:
-      - name: Check out the grid-tested commit
+      - name: Check out the Explorer icon commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 3f4225d857275df00b28aa1b22fd0e093e4ef14f
+          ref: d548fa97c2bacf7f8435560dc41e76023f37cfe3
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
@@ -20,7 +20,7 @@ jobs:
         shell: python
         run: |
           import subprocess
-          for ref, expected in [('HEAD', '3f4225d857275df00b28aa1b22fd0e093e4ef14f'), ('HEAD^{tree}', '0229ed643c4db0f6cb979a2f78cdb81be4cdc1c0')]:
+          for ref, expected in [('HEAD', 'd548fa97c2bacf7f8435560dc41e76023f37cfe3'), ('HEAD^{tree}', 'bc689afa3a604c57a6a29c361eef010f654cf1d6')]:
               actual = subprocess.check_output(['git', 'rev-parse', ref], text=True).strip()
               print(f'{ref}: {actual}', flush=True)
               if actual != expected:
