@@ -12822,10 +12822,12 @@ impl Backend {
         // Using render-resolution depth with display-sized post color would
         // produce incorrect CoC sampling. True layered translucency remains
         // out of scope for this one-depth approximation.
-        if f.dof.is_some() && self.settings.dof_alpha_depth && post_size == world_size {
-            if let Some((_, blended_depth)) = &self.targets.ao_depth {
-                post_depth = blended_depth;
-            }
+        if f.dof.is_some()
+            && self.settings.dof_alpha_depth
+            && post_size == world_size
+            && let Some((_, blended_depth)) = &self.targets.ao_depth
+        {
+            post_depth = blended_depth;
         }
         // ---- depth of field, on the resolved (and TAA-steady) image,
         // before the glow and the tone mapping (not in probe captures)
