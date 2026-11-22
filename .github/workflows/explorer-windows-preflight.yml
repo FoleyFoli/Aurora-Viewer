@@ -17,11 +17,15 @@ jobs:
           filter: blob:none
           persist-credentials: false
       - name: Verify source identity
-        shell: cmd
+        shell: python
         run: |
-          git rev-parse HEAD
-          git rev-parse HEAD | findstr /x 3f4225d857275df00b28aa1b22fd0e093e4ef14f || exit /b 1
-          git diff --exit-code HEAD -- scripts || exit /b 1
+          import subprocess
+          for ref, expected in [('HEAD', '3f4225d857275df00b28aa1b22fd0e093e4ef14f'), ('HEAD^{tree}', '0229ed643c4db0f6cb979a2f78cdb81be4cdc1c0')]:
+              actual = subprocess.check_output(['git', 'rev-parse', ref], text=True).strip()
+              print(f'{ref}: {actual}', flush=True)
+              if actual != expected:
+                  raise SystemExit(f'Expected {expected}; got {actual}')
+          subprocess.run(['git', 'diff', '--exit-code', 'HEAD', '--', 'scripts'], check=True)
       - name: Run the repository check in Windows PowerShell 5.1
         shell: cmd
         run: powershell.exe -NoLogo -NoProfile -NonInteractive -File .\scripts\check.ps1
