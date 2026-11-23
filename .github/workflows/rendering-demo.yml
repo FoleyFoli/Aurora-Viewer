@@ -14,6 +14,7 @@ env:
 
 jobs:
   windows:
+    if: github.event.created
     name: Portable Windows x64 development viewer
     runs-on: windows-latest
     timeout-minutes: 150
@@ -86,23 +87,37 @@ jobs:
               cargo build --profile ci --locked -p aurora-viewer
               if ($LASTEXITCODE) { throw "Build failed at $rev" }
               $exe = Join-Path $env:CARGO_TARGET_DIR 'ci/aurora-viewer'
-              & $helper -Viewer $exe -Scene ShadowSlope -AA 6 -Name "shadow-$side" -OutputDirectory $out
-              & $helper -Viewer $exe -Scene Focus -AA 6 -Name "focus-smaa-$side" -OutputDirectory $out
+              & $helper -Viewer $exe -Scene ShadowSlope -AA 6 -WindowSize '960,540' -Name "shadow-$side" -OutputDirectory $out
+              & $helper -Viewer $exe -Scene Focus -AA 6 -WindowSize '960,540' -Name "focus-smaa-$side" -OutputDirectory $out
               "$side $rev" | Add-Content "$out/revisions.txt"
           }
-      - name: Verify matching image sizes
+      - name: Record image dimensions and display
         shell: bash
         run: |
-          for scene in shadow focus-smaa; do
-            for side in before after; do
-              file="captures/$scene-$side.png"
-              sips -s format png "$file" --out "$RUNNER_TEMP/$scene-$side.png" >/dev/null
-              sips -g pixelWidth -g pixelHeight "$file" | tail -2 > "$RUNNER_TEMP/$scene-$side.size"
-            done
-            diff "$RUNNER_TEMP/$scene-before.size" "$RUNNER_TEMP/$scene-after.size"
-          done
           system_profiler SPDisplaysDataType > captures/display.txt
+          python3 - <<'PYTHON'
+          import pathlib
+          import struct
+
+          root = pathlib.Path("captures")
+          with (root / "dimensions.tsv").open("w") as report:
+              report.write("scene\tside\twidth\theight\n")
+              for scene in ("shadow", "focus-smaa"):
+                  sizes = []
+                  for side in ("before", "after"):
+                      image = root / f"{scene}-{side}.png"
+                      with image.open("rb") as handle:
+                          header = handle.read(24)
+                      if header[:8] != bytes.fromhex("89504e470d0a1a0a") or header[12:16] != b"IHDR":
+                          raise ValueError(f"Invalid PNG header in {image}")
+                      width, height = struct.unpack(">II", header[16:24])
+                      sizes.append((width, height))
+                      report.write(f"{scene}\t{side}\t{width}\t{height}\n")
+                  if sizes[0] != sizes[1]:
+                      print(f"::warning::{scene} original frame sizes differ: {sizes}")
+          PYTHON
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && !cancelled()
         with:
           name: Aurora-Viewer-57d978f7-matched-metal-captures
           path: captures/

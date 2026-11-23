@@ -7,6 +7,7 @@ param(
     [ValidateRange(-1,7)][int]$AA = 6,
     [ValidateRange(0,4)][int]$FsrQuality = 0,
     [string]$OutputDirectory = (Join-Path (Get-Location) '.scratch/pr-captures'),
+    [ValidatePattern('^[1-9][0-9]{2,3},[1-9][0-9]{2,3}$')][string]$WindowSize = '1280,720',
     [ValidateRange(1,7200)][int]$TimeoutSeconds = 900,
     [switch]$Interactive
 )
@@ -51,7 +52,7 @@ foreach ($key in @($info.Environment.Keys)) {
     if ($key -like 'AURORA_*') { [void]$info.Environment.Remove($key) }
 }
 $settings = @{
-    AURORA_DEMO='1'; AURORA_UPDATE_TEST_ROOT=$root; AURORA_WINDOW_SIZE='1280,720'; AURORA_LOG_NAME='rendering-demo'
+    AURORA_DEMO='1'; AURORA_UPDATE_TEST_ROOT=$root; AURORA_WINDOW_SIZE=$WindowSize; AURORA_LOG_NAME='rendering-demo'
 }
 if ($AA -ge 0) { $settings.AURORA_AA="$AA" }
 if ($AA -eq 7) { $settings.AURORA_FSR_QUALITY="$FsrQuality" }
