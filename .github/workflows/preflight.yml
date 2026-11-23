@@ -1,0 +1,31 @@
+name: Rendering quality Windows preflight
+on:
+  push:
+    branches: [validation/rendering-quality-41779d32]
+permissions:
+  contents: read
+jobs:
+  full-check:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out the rendering quality candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 41779d327ec458a19c678f72a71587e4d86ceddd
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Verify source identity
+        shell: python
+        run: |
+          import subprocess
+          for ref, expected in [('HEAD', '41779d327ec458a19c678f72a71587e4d86ceddd'), ('HEAD^{tree}', 'e8831e25a13e65bcdf00e634e98edb1aac23779e')]:
+              actual = subprocess.check_output(['git', 'rev-parse', ref], text=True).strip()
+              print(f'{ref}: {actual}', flush=True)
+              if actual != expected:
+                  raise SystemExit(f'Expected {expected}; got {actual}')
+          subprocess.run(['git', 'diff', '--exit-code', 'HEAD', '--', 'scripts'], check=True)
+      - name: Run the repository check in Windows PowerShell 5.1
+        shell: cmd
+        run: powershell.exe -NoLogo -NoProfile -NonInteractive -File .\scripts\check.ps1
