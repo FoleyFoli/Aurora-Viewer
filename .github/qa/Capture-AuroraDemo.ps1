@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Viewer,
-    [Parameter(Mandatory)][ValidateSet('ShadowSlope','Focus','Stochastic','AlphaPlanes','MixedMaterials','Plaza')][string]$Scene,
+    [Parameter(Mandatory)][ValidateSet('ShadowSlope','Focus','FocusClose','Stochastic','AlphaPlanes','MixedMaterials','Plaza')][string]$Scene,
     [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_-]*$')][string]$Name,
     [ValidateRange(-1,7)][int]$AA = 6,
     [ValidateRange(0,4)][int]$FsrQuality = 0,
@@ -57,15 +57,40 @@ $settings = @{
 if ($AA -ge 0) { $settings.AURORA_AA="$AA" }
 if ($AA -eq 7) { $settings.AURORA_FSR_QUALITY="$FsrQuality" }
 switch ($Scene) {
-    'ShadowSlope' { $settings.AURORA_DEMO_POS='132,126'; $settings.AURORA_DEMO_SOFT_SHADOWS='slope'; $settings.AURORA_DEMO_SUN='27,5' }
+    'ShadowSlope' {
+        $settings.AURORA_DEMO_POS = '132,126'
+        $settings.AURORA_DEMO_SOFT_SHADOWS = 'slope'
+        # Leave the 35-degree ramp illuminated at a shallow grazing angle.
+        $settings.AURORA_DEMO_SUN = '27,45'
+        $settings.AURORA_SHADOWS = '3'
+        $settings.AURORA_SOFT_SHADOWS = '1'
+        $settings.AURORA_CONTACT_SHADOWS = '1'
+    }
     'Focus' { $settings.AURORA_DEMO_DOF='1.4:3.3'; $settings.AURORA_DEMO_HAIR_CARDS='12' }
+    'FocusClose' {
+        $settings.AURORA_DEMO_POS = '133,129'
+        $settings.AURORA_DEMO_HAIR_CARDS = '12'
+        # Scale the documented hair-card pick (840,610 at 1683x900) to the
+        # drawable. Aurora enforces 800x560 even for smaller requested sizes.
+        [int[]]$dimensions = $WindowSize.Split(',')
+        $x = [int][Math]::Round(840 * [Math]::Max(800, $dimensions[0]) / 1683)
+        $y = [int][Math]::Round(610 * [Math]::Max(560, $dimensions[1]) / 900)
+        $settings.AURORA_DEMO_CAMERA = "close,$x,$y,40"
+        # The physical camera moves during the scripted Alt-zoom. Use the
+        # world's Camera focus mode so the lens follows the picked surface.
+        $profile = [IO.Directory]::CreateDirectory((Join-Path $root 'profile')).FullName
+        $preferences = @{ dof = @{ enabled = $true; focus = 'Camera'; f_number = 1.4; transition = 0.1 } }
+        [IO.File]::WriteAllText((Join-Path $profile 'settings.json'), ($preferences | ConvertTo-Json))
+    }
     'Stochastic' { $settings.AURORA_DEMO_ALPHA_PLANES='8,0.4,0.5'; $settings.AURORA_OIT='1' }
     'AlphaPlanes' { $settings.AURORA_DEMO_ALPHA_PLANES='8,0.4,0.5' }
     'MixedMaterials' { $settings.AURORA_DEMO_PBR_MIXED='1' }
 }
 if (!$Interactive) {
     $settings.AURORA_CAPTURE=Join-Path $root 'capture.png'
-    $settings.AURORA_CAPTURE_FRAMES=if ($Scene -eq 'Focus') { '780' } else { '620' }
+    # Advanced > Rendering features > UI toggles off once at frame 600.
+    $settings.AURORA_DEMO_UI_FEATURE = 'off'
+    $settings.AURORA_CAPTURE_FRAMES = '780'
     $settings.AURORA_CAPTURE_EXIT='1'
 }
 foreach ($entry in $settings.GetEnumerator()) { $info.Environment[$entry.Key] = $entry.Value }
