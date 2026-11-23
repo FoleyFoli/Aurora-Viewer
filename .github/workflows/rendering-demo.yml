@@ -1,216 +1,70 @@
-name: Rendering candidate and demo captures
-
+name: Diagnose Metal world captures
 on:
   push:
     branches: [validation/rendering-demo-57d978f7]
-
 permissions:
   contents: read
-
-env:
-  CANDIDATE: 57d978f7a97d89c358fb40c838201d1c226ff84d
-  BASELINE: 86b9cdacc3060b052159fa20e368ff4369b0c492
-  CARGO_INCREMENTAL: '0'
-
+  actions: read
 jobs:
-  windows:
-    if: github.event.created
-    name: Portable Windows x64 development viewer
-    runs-on: windows-latest
-    timeout-minutes: 150
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ env.CANDIDATE }}
-          fetch-depth: 0
-          filter: blob:none
-          persist-credentials: false
-      - name: Build and package the candidate
-        shell: pwsh
-        run: |
-          if ((git rev-parse HEAD) -ne $env:CANDIDATE) { throw 'Unexpected source commit' }
-          cargo build --locked -p aurora-viewer
-          if ($LASTEXITCODE) { throw 'Viewer build failed' }
-          $dir = 'Aurora-Viewer-57d978f7-windows-x64'
-          $exe = 'target/debug/aurora-viewer.exe'
-          ./scripts/package.ps1 -Exe $exe -Out $dir
-          Copy-Item -LiteralPath THIRD-PARTY-LICENSES.md -Destination $dir -ErrorAction Stop
-          $dlls = @(Get-ChildItem -LiteralPath target/debug -File -Filter '*.dll')
-          $dlls | Copy-Item -Destination $dir -ErrorAction Stop
-          $files = @(Get-Item "$dir/aurora-viewer.exe") + @(Get-ChildItem $dir -File -Filter '*.dll')
-          $manifest = @("Source $env:CANDIDATE", (Get-Content "$dir/aurora-install.json" -Raw))
-          foreach ($file in $files) {
-              $manifest += "$((Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($file.Name)"
-          }
-          $manifest | Set-Content "$dir/build-manifest.txt" -Encoding utf8NoBOM
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: Aurora-Viewer-57d978f7-windows-x64
-          path: Aurora-Viewer-57d978f7-windows-x64/
-          if-no-files-found: error
-          retention-days: 14
-
-  mac-build:
-    # To retry with different capture settings, set this repository variable to
-    # a previous successful run of this workflow which produced both archives.
-    if: vars.RENDERING_DEMO_BUILD_RUN == ''
-    name: Build Metal viewer (${{ matrix.side }})
+  compare:
+    if: github.repository == 'FoleyFoli/Aurora-Viewer'
     runs-on: macos-15
-    timeout-minutes: 110
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - side: before
-            revision: 86b9cdacc3060b052159fa20e368ff4369b0c492
-          - side: after
-            revision: 57d978f7a97d89c358fb40c838201d1c226ff84d
+    timeout-minutes: 65
+    env:
+      BUILD_RUN: '45129232727'
+      BEFORE: 86b9cdacc3060b052159fa20e368ff4369b0c492
+      AFTER: 57d978f7a97d89c358fb40c838201d1c226ff84d
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ matrix.revision }}
-          fetch-depth: 0
-          filter: blob:none
+          sparse-checkout: .github/qa
           persist-credentials: false
-      - name: Verify, build and archive the viewer
-        shell: bash
-        env:
-          REVISION: ${{ matrix.revision }}
-          SIDE: ${{ matrix.side }}
-        run: |
-          test "$(git rev-parse HEAD)" = "$REVISION"
-          if [[ $SIDE == after ]]; then test "$(git rev-parse HEAD^2)" = "$BASELINE"; fi
-          cargo build --profile ci --locked -p aurora-viewer
-          mkdir viewer-package
-          cp -p target/ci/aurora-viewer viewer-package/
-          printf '%s\n' "$REVISION" > viewer-package/revision.txt
-          (cd viewer-package && shasum -a 256 aurora-viewer > viewer.sha256)
-          tar -czf "viewer-$SIDE.tar.gz" -C viewer-package aurora-viewer revision.txt viewer.sha256
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: rendering-macos-${{ matrix.side }}-${{ matrix.revision }}
-          path: viewer-${{ matrix.side }}.tar.gz
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 14
-
-  demo:
-    name: Matched SMAA shadow and focus demos on Metal
-    needs: mac-build
-    if: ${{ !cancelled() && (needs.mac-build.result == 'success' || (needs.mac-build.result == 'skipped' && vars.RENDERING_DEMO_BUILD_RUN != '')) }}
-    permissions:
-      contents: read
-      actions: read
-    runs-on: macos-15
-    timeout-minutes: 120
-    steps:
-      - name: Check out the capture helper
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          path: validation
-          sparse-checkout: .github/qa/Capture-AuroraDemo.ps1
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
-      - name: Verify the chosen earlier build run
-        if: vars.RENDERING_DEMO_BUILD_RUN != ''
-        shell: bash
+      - name: Verify the archived builds
         env:
           GH_TOKEN: ${{ github.token }}
-          BUILD_RUN: ${{ vars.RENDERING_DEMO_BUILD_RUN }}
-        run: |
-          [[ $BUILD_RUN =~ ^[0-9]+$ ]]
-          run="repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN"
-          identity=$(gh api "$run" --jq '[.event, .head_branch, .head_repository.full_name, .path] | join(" ")')
-          test "$identity" = "push $GITHUB_REF_NAME $GITHUB_REPOSITORY .github/workflows/rendering-demo.yml"
-      - name: Download the two archived executables
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: rendering-macos-*
-          path: archives
-          merge-multiple: true
-          github-token: ${{ github.token }}
-          run-id: ${{ vars.RENDERING_DEMO_BUILD_RUN || github.run_id }}
-      - name: Verify executable identities and permissions
         shell: bash
         run: |
-          mkdir -p captures
+          mkdir diagnostics
+          metadata="repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN"
+          gh api "$metadata" --jq '.head_sha' | grep -Fxq f8962fd5a2d10ac812f3e46c5fc091248dcf2fe9
+          gh api "$metadata/artifacts" > "$RUNNER_TEMP/artifacts.json"
+          while read -r id side ref digest; do
+            jq -e --argjson id "$id" --arg name "rendering-macos-$side-$ref" --arg digest "sha256:$digest" \
+              '.artifacts[] | select(.id == $id and .name == $name and .digest == $digest and .expired == false)' \
+              "$RUNNER_TEMP/artifacts.json" > /dev/null
+            printf '%s %s %s %s\n' "$side" "$ref" "$id" "$digest" >> diagnostics/builds.txt
+          done <<BUILDS
+          14798136385 before $BEFORE 7548a85957516b9c4f512b3d942c336a80b628a23974371ea36a7929a77ec871
+          14797668045 after $AFTER 82c0c2c76b1922efc6c5c5a988a2b30d473eb353dbdf1062b19fa741f47d67b3
+          BUILDS
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: 14798136385,14797668045
+          run-id: 45129232727
+          github-token: ${{ github.token }}
+          path: archives
+          merge-multiple: true
+      - name: Check executable manifests and prepare window inspection
+        shell: bash
+        run: |
           for side in before after; do
             dir="$RUNNER_TEMP/viewer-$side"
             mkdir -p "$dir"
             tar -xzf "archives/viewer-$side.tar.gz" -C "$dir" aurora-viewer revision.txt viewer.sha256
-            expected="$CANDIDATE"
-            if [[ $side == before ]]; then expected="$BASELINE"; fi
+            expected="$AFTER"
+            if [[ $side == before ]]; then expected="$BEFORE"; fi
             test "$(cat "$dir/revision.txt")" = "$expected"
             (cd "$dir" && shasum -a 256 -c viewer.sha256 && test -x aurora-viewer)
-            printf '%s %s\n' "$side" "$expected" >> captures/revisions.txt
           done
-      - name: Capture both revisions on this display
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $helper = Join-Path $env:GITHUB_WORKSPACE 'validation/.github/qa/Capture-AuroraDemo.ps1'
-          $out = Join-Path $env:GITHUB_WORKSPACE 'captures'
-          $failures = @()
-          foreach ($side in 'before', 'after') {
-              $exe = Join-Path $env:RUNNER_TEMP "viewer-$side/aurora-viewer"
-              foreach ($scene in 'ShadowSlope', 'Focus', 'FocusClose') {
-                  $name = @{ ShadowSlope='shadow'; Focus='focus-smaa'; FocusClose='focus-close-smaa' }[$scene] + "-$side"
-                  try {
-                      & $helper -Viewer $exe -Scene $scene -AA 6 -WindowSize '960,540' -Name $name -OutputDirectory $out
-                      if (!(Select-String -LiteralPath "$out/$name.log" -SimpleMatch 'interface: UI rendering feature off' -Quiet)) {
-                          throw 'Viewer did not confirm UI rendering off'
-                      }
-                  } catch {
-                      $failures += "$name failed: $_"
-                  }
-              }
-          }
-          if ($failures) { throw ($failures -join [Environment]::NewLine) }
-      - name: Record original image dimensions and display
-        if: always() && !cancelled()
+          swiftc .github/qa/metal-window.swift -o "$RUNNER_TEMP/metal-window"
+      - name: Compare the window, surface readback and world texture
         shell: bash
-        run: |
-          mkdir -p captures
-          (sw_vers; uname -m; system_profiler SPDisplaysDataType) > captures/display.txt
-          python3 - <<'PYTHON'
-          import pathlib
-          import struct
-
-          root = pathlib.Path("captures")
-          invalid = []
-          with (root / "dimensions.tsv").open("w") as report:
-              report.write("scene\tside\twidth\theight\n")
-              for scene in ("shadow", "focus-smaa", "focus-close-smaa"):
-                  sizes = []
-                  for side in ("before", "after"):
-                      image = root / f"{scene}-{side}.png"
-                      if not image.exists():
-                          invalid.append(f"Missing {image.name}")
-                          continue
-                      with image.open("rb") as handle:
-                          header = handle.read(24)
-                      if header[:8] != bytes.fromhex("89504e470d0a1a0a") or header[12:16] != b"IHDR":
-                          invalid.append(f"Invalid PNG header in {image.name}")
-                          continue
-                      width, height = struct.unpack(">II", header[16:24])
-                      sizes.append((width, height))
-                      report.write(f"{scene}\t{side}\t{width}\t{height}\n")
-                  if len(set(sizes)) > 1:
-                      invalid.append(f"{scene} images have different dimensions: {sizes}")
-          with (root / "display.txt").open("a") as report:
-              for log in sorted(root.glob("*.log")):
-                  for line in log.read_text(errors="replace").splitlines():
-                      if "] GPU: " in line:
-                          report.write(f"{log.name}: {line.split('] GPU: ', 1)[1]}\n")
-                          break
-          if invalid:
-              raise SystemExit("\n".join(invalid))
-          PYTHON
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        run: caffeinate -dimsu python3 .github/qa/metal-capture.py "$RUNNER_TEMP" diagnostics
+      - name: Upload raw evidence and measurements
         if: always() && !cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: Aurora-Viewer-57d978f7-matched-metal-captures
-          path: captures/
+          name: Aurora-Viewer-57d978f7-metal-diagnostics
+          path: diagnostics/
           if-no-files-found: error
           retention-days: 14
