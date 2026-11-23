@@ -1,0 +1,110 @@
+name: Rendering candidate and demo captures
+
+on:
+  push:
+    branches: [validation/rendering-demo-57d978f7]
+
+permissions:
+  contents: read
+
+env:
+  CANDIDATE: 57d978f7a97d89c358fb40c838201d1c226ff84d
+  BASELINE: 86b9cdacc3060b052159fa20e368ff4369b0c492
+  CARGO_INCREMENTAL: '0'
+
+jobs:
+  windows:
+    name: Portable Windows x64 development viewer
+    runs-on: windows-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.CANDIDATE }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Build and package the candidate
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:CANDIDATE) { throw 'Unexpected source commit' }
+          cargo build --locked -p aurora-viewer
+          if ($LASTEXITCODE) { throw 'Viewer build failed' }
+          $dir = 'Aurora-Viewer-57d978f7-windows-x64'
+          $exe = 'target/debug/aurora-viewer.exe'
+          ./scripts/package.ps1 -Exe $exe -Out $dir
+          Copy-Item -LiteralPath THIRD-PARTY-LICENSES.md -Destination $dir -ErrorAction Stop
+          $dlls = @(Get-ChildItem -LiteralPath target/debug -File -Filter '*.dll')
+          $dlls | Copy-Item -Destination $dir -ErrorAction Stop
+          $files = @(Get-Item "$dir/aurora-viewer.exe") + @(Get-ChildItem $dir -File -Filter '*.dll')
+          $manifest = @("Source $env:CANDIDATE", (Get-Content "$dir/aurora-install.json" -Raw))
+          foreach ($file in $files) {
+              $manifest += "$((Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($file.Name)"
+          }
+          $manifest | Set-Content "$dir/build-manifest.txt" -Encoding utf8NoBOM
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Aurora-Viewer-57d978f7-windows-x64
+          path: Aurora-Viewer-57d978f7-windows-x64/
+          if-no-files-found: error
+          retention-days: 14
+
+  demo:
+    name: Matched SMAA shadow and focus demos on Metal
+    runs-on: macos-15
+    timeout-minutes: 150
+    steps:
+      - name: Check out the capture helper
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: validation
+          sparse-checkout: .github/qa/Capture-AuroraDemo.ps1
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Check out the candidate with its upstream parent
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.CANDIDATE }}
+          path: source
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Build and capture each revision on this runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $helper = Join-Path $env:GITHUB_WORKSPACE 'validation/.github/qa/Capture-AuroraDemo.ps1'
+          $out = Join-Path $env:GITHUB_WORKSPACE 'captures'
+          $env:CARGO_TARGET_DIR = Join-Path $env:RUNNER_TEMP 'aurora-build'
+          Set-Location (Join-Path $env:GITHUB_WORKSPACE 'source')
+          if ((git rev-parse 'HEAD^2') -ne $env:BASELINE) { throw 'Unexpected upstream merge parent' }
+          foreach ($side in 'before', 'after') {
+              $rev = if ($side -eq 'before') { $env:BASELINE } else { $env:CANDIDATE }
+              git checkout --detach $rev
+              if ($LASTEXITCODE -or (git rev-parse HEAD) -ne $rev) { throw "Unexpected $side revision" }
+              cargo build --profile ci --locked -p aurora-viewer
+              if ($LASTEXITCODE) { throw "Build failed at $rev" }
+              $exe = Join-Path $env:CARGO_TARGET_DIR 'ci/aurora-viewer'
+              & $helper -Viewer $exe -Scene ShadowSlope -AA 6 -Name "shadow-$side" -OutputDirectory $out
+              & $helper -Viewer $exe -Scene Focus -AA 6 -Name "focus-smaa-$side" -OutputDirectory $out
+              "$side $rev" | Add-Content "$out/revisions.txt"
+          }
+      - name: Verify matching image sizes
+        shell: bash
+        run: |
+          for scene in shadow focus-smaa; do
+            for side in before after; do
+              file="captures/$scene-$side.png"
+              sips -s format png "$file" --out "$RUNNER_TEMP/$scene-$side.png" >/dev/null
+              sips -g pixelWidth -g pixelHeight "$file" | tail -2 > "$RUNNER_TEMP/$scene-$side.size"
+            done
+            diff "$RUNNER_TEMP/$scene-before.size" "$RUNNER_TEMP/$scene-after.size"
+          done
+          system_profiler SPDisplaysDataType > captures/display.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Aurora-Viewer-57d978f7-matched-metal-captures
+          path: captures/
+          if-no-files-found: error
+          retention-days: 14
