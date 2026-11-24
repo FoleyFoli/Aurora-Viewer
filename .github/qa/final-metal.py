@@ -1,4 +1,4 @@
-"""Gate two ordinary Metal captures from the exact newly built viewer.
+"""Capture and validate three matched demo scenes using ordinary Metal.
 
 Native API/shader validation changes the Metal path and is intentionally absent
 here. A separate instrumented diagnostic cannot replace either production run.
@@ -17,7 +17,7 @@ import time
 
 
 INHERITED_ENV = ("HOME", "PATH", "TMPDIR", "LANG", "LC_ALL", "USER")
-CASES = ("surface-cycle", "hair-close")
+CASES = ("surface-cycle", "hair-close", "shadow-slope")
 
 
 def sha256(path):
@@ -34,7 +34,6 @@ def case_settings(case):
         "AURORA_DEMO": "1",
         "AURORA_AA": "6",
         "AURORA_WINDOW_SIZE": "960,560",
-        "AURORA_DEMO_HAIR_CARDS": "12",
         "AURORA_CAPTURE_FRAMES": "780",
         "AURORA_CAPTURE_EXIT": "1",
         "AURORA_LOG_NAME": "final-metal",
@@ -43,17 +42,34 @@ def case_settings(case):
     if case == "surface-cycle":
         # The old failure's default camera and fixed-distance lens. The UI
         # goes off at 600; capture/exit at 780 precedes the cycle's on at 900.
-        environment.update(AURORA_DEMO_DOF="1.4:3.3", AURORA_DEMO_UI_FEATURE="cycle")
+        environment.update(AURORA_DEMO_DOF="1.4:3.3", AURORA_DEMO_UI_FEATURE="cycle", AURORA_DEMO_HAIR_CARDS="12")
     elif case == "hair-close":
         # Exact diagnostics/hair-after-settings.json camera and Camera-focus
         # profile, with the UI disabled at 600 for a world-only capture.
         # Do not add AURORA_DEMO_DOF: it would replace this Camera focus.
         environment.update(
+            AURORA_DEMO_HAIR_CARDS="12",
             AURORA_DEMO_POS="133,129",
             AURORA_DEMO_CAMERA="close,479,380,40",
             AURORA_DEMO_UI_FEATURE="off",
         )
         prefs["dof"] = {"enabled": True, "focus": "Camera", "f_number": 1.4, "transition": 0.1}
+    elif case == "shadow-slope":
+        # Same scenario, sun, camera, shadow tier and overrides on both
+        # revisions. The 35-degree ramp receives the post's grazing shadow.
+        # Force raster only for this fixture; the two regression runs above
+        # retain their original normal launch settings.
+        environment.update(
+            AURORA_DEMO_POS="132,126",
+            AURORA_DEMO_SOFT_SHADOWS="slope",
+            AURORA_DEMO_SUN="27,45",
+            AURORA_SHADOWS="3",
+            AURORA_SHADOW_SOFTNESS="1",
+            AURORA_SOFT_SHADOWS="1",
+            AURORA_CONTACT_SHADOWS="1",
+            AURORA_RT_SHADOWS="0",
+            AURORA_DEMO_UI_FEATURE="off",
+        )
     else:
         raise ValueError(f"Unknown Metal capture case: {case}")
     return environment, prefs
@@ -212,8 +228,11 @@ def run_case(viewer, inspector, output, case, identity):
             native_query = report["native_log"]
             if "failure" in native_query:
                 raise RuntimeError("Native log collection failed: " + native_query["failure"])
+            viewer_log = log.read_text(errors="replace")
+            if case == "shadow-slope" and not re.search(r"demo soft shadows: [1-9][0-9]* prims", viewer_log):
+                raise RuntimeError("The viewer did not load the shadow-slope fixture")
             validate_log(
-                log.read_text(errors="replace"), console_path.read_text(errors="replace"),
+                viewer_log, console_path.read_text(errors="replace"),
                 (output / "native-system.log").read_text(errors="replace") + "\n"
                 + (output / "native-system-stderr.log").read_text(errors="replace"),
             )
@@ -234,6 +253,7 @@ def main():
         "source_commit": os.environ.get("SOURCE_COMMIT", ""),
         "source_tree": os.environ.get("SOURCE_TREE", ""),
         "mode": "normal",
+        "comparison_side": os.environ.get("SIDE", ""),
         "passed": False,
         "cases": [],
     }
@@ -244,7 +264,7 @@ def main():
         report["executable_sha256"] = sha256(viewer)
         identity = {key: report[key] for key in ("source_commit", "source_tree", "executable_sha256")}
         for case in CASES:
-            # Still collect the second independent case if the first fails.
+            # Collect each independent scene even if an earlier one fails.
             report["cases"].append(run_case(viewer, inspector, output / case, case, identity))
         failed = [result["case"] for result in report["cases"] if not result["passed"]]
         if failed:

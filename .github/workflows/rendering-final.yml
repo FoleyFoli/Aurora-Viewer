@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 env:
-  SOURCE_COMMIT: 416e2147e199bfa842d4b6ab77bb3b01ccb1efff
-  SOURCE_TREE: bb8d51167b443da3ecd8df84505daf837d4565f9
+  SOURCE_COMMIT: 1c4704e25cd86a4a244489c94d7f9eae794355b7
+  SOURCE_TREE: e97ad1f5563d4ef76ede42b89d3c508bb131fec7
   APPROVED_COMMIT: 57d978f7a97d89c358fb40c838201d1c226ff84d
   CARGO_TERM_COLOR: always
 
@@ -198,7 +198,22 @@ jobs:
 
   metal:
     if: github.repository == 'FoleyFoli/Aurora-Viewer'
-    name: Ordinary Metal surface and close-hair captures
+    name: Ordinary Metal captures (${{ matrix.side }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - side: upstream
+            commit: '63cca6e0611425a11e6d8421f589fb367ac27d03'
+            tree: '8287f97e3faf6536e77da3a5aa31ce6972b827cd'
+          - side: candidate
+            commit: '1c4704e25cd86a4a244489c94d7f9eae794355b7'
+            tree: 'e97ad1f5563d4ef76ede42b89d3c508bb131fec7'
+    env:
+      SOURCE_COMMIT: ${{ matrix.commit }}
+      SOURCE_TREE: ${{ matrix.tree }}
+      SIDE: ${{ matrix.side }}
+      BASELINE_COMMIT: '63cca6e0611425a11e6d8421f589fb367ac27d03'
     runs-on: macos-15
     timeout-minutes: 120
     defaults:
@@ -221,12 +236,17 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
-      - name: Verify the source commit, tree and approved ancestor
+      - name: Verify source identity and comparison ancestry
         run: |
           [[ $SOURCE_COMMIT =~ ^[0-9a-f]{40}$ && $SOURCE_TREE =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
-          git merge-base --is-ancestor "$APPROVED_COMMIT" HEAD
+          if [[ "$SIDE" == candidate ]]; then
+            git merge-base --is-ancestor "$APPROVED_COMMIT" HEAD
+            git merge-base --is-ancestor "$BASELINE_COMMIT" HEAD
+          else
+            test "$SOURCE_COMMIT" = "$BASELINE_COMMIT"
+          fi
           test -z "$(git status --porcelain --untracked-files=all)"
           mkdir -p ../evidence/metal
           git show -s --format='commit=%H%ntree=%T%nparents=%P%nsubject=%s' HEAD > ../evidence/metal/source.txt
@@ -241,8 +261,8 @@ jobs:
           cargo --version >> ../evidence/metal/toolchain.txt
       - name: Compile the native PNG inspector
         run: swiftc ../validation/.github/qa/final-metal-pixels.swift -o "$RUNNER_TEMP/final-metal-pixels"
-      - name: Require both ordinary Metal world captures
-        timeout-minutes: 25
+      - name: Capture the three matched scenes on ordinary Metal
+        timeout-minutes: 40
         run: |
           caffeinate -dimsu python3 ../validation/.github/qa/final-metal.py \
             target/ci/aurora-viewer "$RUNNER_TEMP/final-metal-pixels" ../evidence/metal
@@ -257,7 +277,7 @@ jobs:
         if: always() && !cancelled()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: rendering-final-metal-${{ env.SOURCE_COMMIT }}
+          name: rendering-final-metal-${{ matrix.side }}-${{ matrix.commit }}
           path: evidence/metal/
           if-no-files-found: error
           retention-days: 14
