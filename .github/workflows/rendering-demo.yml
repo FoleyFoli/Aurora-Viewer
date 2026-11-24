@@ -1,7 +1,7 @@
-name: Diagnose native Metal rendering errors
+name: Isolate native Metal rendering failures
 on:
   push:
-    branches: [validation/metal-errors-57d978f7]
+    branches: [validation/metal-validation-split-57d978f7]
 permissions:
   contents: read
   actions: read
@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [api, shader, hoisted, shared]
+        mode: [metal-api-only, wgpu-only, shadow-graph-bypass, occlusion-off]
     env:
       BUILD_RUN: '45129232727'
       BEFORE: 86b9cdacc3060b052159fa20e368ff4369b0c492
@@ -63,7 +63,7 @@ jobs:
             (cd "$dir" && shasum -a 256 -c viewer.sha256 && test -x aurora-viewer)
           done
           swiftc .github/qa/metal-window.swift -o "$RUNNER_TEMP/metal-window"
-      - name: Run native validation or shader callsite experiment
+      - name: Compare candidate and upstream in one diagnostic mode
         shell: bash
         env:
           MODE: ${{ matrix.mode }}

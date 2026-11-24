@@ -1,4 +1,4 @@
-"""Run exact archived viewers with native Metal validation or a shader experiment."""
+"""Isolate Metal failures with exact archived viewers and matched controls."""
 import hashlib
 import json
 import os
@@ -11,6 +11,8 @@ from pathlib import Path
 TEMP = Path(sys.argv[1]).resolve()
 OUT = Path(sys.argv[2]).resolve()
 MODE = sys.argv[3]
+if MODE not in {"metal-api-only", "wgpu-only", "shadow-graph-bypass", "occlusion-off"}:
+    raise ValueError(f"Unknown validation mode: {MODE}")
 SOURCE = Path.cwd() / "crates/aurora-render/src/shaders"
 OUT.mkdir(exist_ok=True)
 
@@ -47,15 +49,17 @@ def run_viewer(side, name, override=None):
             RUST_BACKTRACE="1",
             RUST_LOG="info,wgpu_hal=debug,wgpu_core=warn,naga=warn,reqwest=warn",
         )
-        if MODE in {"api", "shader"}:
-            env.update(MTL_DEBUG_LAYER="1", AURORA_GPU_VALIDATION="1")
-        if MODE == "shader":
-            env.update(MTL_SHADER_VALIDATION="1", MTL_SHADER_VALIDATION_REPORT_TO_STDERR="1")
+        if MODE == "metal-api-only":
+            env["MTL_DEBUG_LAYER"] = "1"
+        elif MODE == "wgpu-only":
+            env["AURORA_GPU_VALIDATION"] = "1"
+        elif MODE == "occlusion-off":
+            env["AURORA_NO_OCCLUSION"] = "1"
         if override:
             compiled_path = str(SOURCE.parent.parent).encode()
             if compiled_path not in exe.read_bytes():
                 raise RuntimeError("Archived executable does not contain the expected shader source directory")
-            shutil.copy2(override, SOURCE / "object.wgsl")
+            shutil.copy2(override, SOURCE / "common.wgsl")
             env["AURORA_DEMO_WATER_SHADERS"] = "1"
             checksums = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in SOURCE.glob("*.wgsl")}
             (OUT / f"{name}-shaders.json").write_text(json.dumps(checksums, indent=2))
@@ -86,12 +90,12 @@ def run_viewer(side, name, override=None):
         return {"case": name, "exit": result}
 
 
-if MODE in {"api", "shader"}:
-    results = [run_viewer("after", "candidate"), run_viewer("before", "upstream")]
-else:
-    override_name = "object-hoisted.wgsl" if MODE == "hoisted" else "object-shared-shadow.wgsl"
-    override_path = Path.cwd() / ".github/qa" / override_name
-    results = [run_viewer("after", "baked"), run_viewer("after", "override", override_path)]
+# The isolation case disables directional-map sampling only for the candidate.
+# The upstream control keeps its embedded shaders.
+override_path = None
+if MODE == "shadow-graph-bypass":
+    override_path = Path.cwd() / ".github/qa/common-directional-graph-bypass.wgsl"
+results = [run_viewer("after", "candidate", override_path), run_viewer("before", "upstream")]
 
 (OUT / "results.json").write_text(json.dumps(results, indent=2))
 with (OUT / "pixels.tsv").open("w") as output:
