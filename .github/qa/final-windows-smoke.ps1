@@ -70,7 +70,12 @@ try {
         $exited = $proc.WaitForExit(3000)
         # Missing Vulkan often opens a native startup-error dialog indefinitely.
         if (Test-Path -LiteralPath $log) {
-            $runtimeLog = [IO.File]::ReadAllText($log)
+            # The logger keeps its write handle open between flushes.
+            $stream = [IO.File]::Open($log, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+            try {
+                $reader = [IO.StreamReader]::new($stream)
+                try { $runtimeLog = $reader.ReadToEnd() } finally { $reader.Dispose() }
+            } finally { $stream.Dispose() }
             if ($runtimeLog -notmatch 'GPU: [^\r\n]+\(Vulkan, driver ' -and $runtimeLog -match $noAdapter) {
                 $result.status = 'unavailable-no-presentable-vulkan-adapter'
                 throw $Matches[0]
