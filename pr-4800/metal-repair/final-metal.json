@@ -1,0 +1,51 @@
+{
+  "source_commit": "a9ba60f9c985eba6f80df68fcf40212c14cae2d2",
+  "source_tree": "d8588e7fc57af407be6c340cf9ad52b5a15ed220",
+  "status": "unavailable-hosted-arm64-capacity",
+  "source_built": false,
+  "captured_scenes": [],
+  "attempts": [
+    {
+      "run": 45359333007,
+      "job": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45359333007/job/138325058074",
+      "workflow_commit": "76f2f7667b686306bda40e730e6861d8dcb35d12",
+      "runner": "macos-15",
+      "conclusion": "cancelled",
+      "started_job_steps": 0,
+      "evidence_artifact": null
+    },
+    {
+      "run": 45361822047,
+      "job": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45361822047/job/138333524501",
+      "workflow_commit": "8d67022b4f1f144ced1ccb14972dc1829f0ccb28",
+      "runner": "macos-15",
+      "conclusion": "cancelled",
+      "started_job_steps": 0,
+      "evidence_artifact": null
+    },
+    {
+      "run": 45364395203,
+      "job": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45364395203/job/138342243939",
+      "workflow_commit": "29827037bb2a10aba85d2e529b9175464a8eee55",
+      "runner": "macos-26",
+      "conclusion": "cancelled",
+      "started_job_steps": 0,
+      "evidence_artifact": null
+    }
+  ],
+  "github_check_annotations": [
+    "The job was not acquired by Runner of type hosted even after multiple attempts",
+    "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times."
+  ],
+  "previous_tested_source_commit": "75c022abdbaad690ab14975674ec900ace2c51fe",
+  "previous_tested_source_tree": "4d449b0369533d5e5ea857b09da08b6040c2788e",
+  "changed_paths_since_previous_test": [
+    "TASKS.md"
+  ],
+  "previous_tested_source": {
+    "job": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45346318145",
+    "evidence_artifact_id": 14898549538,
+    "evidence_archive_sha256": "69aa3f4c1007806b3eeb41b81d16eccf0c4dc4d98d22c4453f29c8836ef4f555",
+    "summary": "Three ordinary Metal frames and camera-matched hair passed on macOS 15 with zero per-process GPU errors. See matched-metal.json."
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "source": {
+    "sha": "a9ba60f9c985eba6f80df68fcf40212c14cae2d2",
+    "tree": "d8588e7fc57af407be6c340cf9ad52b5a15ed220"
+  },
+  "windows_stock_checks": {
+    "run": 45359333007,
+    "job_id": 138325058148,
+    "conclusion": "success",
+    "rust_test_groups": 40,
+    "passed": 12108,
+    "failed": 0,
+    "ignored": 68,
+    "all_green": true,
+    "shell": "PowerShell 7 on Windows, including Windows PowerShell 5.1 parser",
+    "url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45359333007/job/138325058148"
+  },
+  "windows_portable_package": {
+    "source_commit": "a9ba60f9c985eba6f80df68fcf40212c14cae2d2",
+    "source_tree": "d8588e7fc57af407be6c340cf9ad52b5a15ed220",
+    "workflow_commit": "76f2f7667b686306bda40e730e6861d8dcb35d12",
+    "run": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45359333007",
+    "portable_zip": "Aurora-Viewer-rendering-test-a9ba60f9c985eba6f80df68fcf40212c14cae2d2.zip",
+    "zip_sha256": "95797c63f956987f49588473e8a4e4c5f0db38dc1a0e53dc5266b0b097dc97ba",
+    "executable": {
+      "path": "aurora-viewer.exe",
+      "sha256": "0d9e997c09235e3529e2e2a7aee34ecd71f8077fbcf20ea03e49ed747cd8e848",
+      "bytes": 254879744
+    },
+    "verified_archive_files": 22,
+    "files_checked_against_sha256sums": 21,
+    "actions_artifact": {
+      "id": 14906260621,
+      "bytes": 101933150,
+      "digest": "sha256:1ffdcb00baa1094b31369d00a3bbaf3e7374b50fef243460a5e1dfa4bb11e696",
+      "url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45359333007/artifacts/14906260621",
+      "expires_at": "2026-12-08T09:15:51Z"
+    }
+  },
+  "swiftshader": {
+    "candidate": {
+      "run": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45359333007/job/138339342890",
+      "artifact_id": 14906192271,
+      "first_frame_presented": true,
+      "requested_world_frame_captured": false,
+      "scene_prims": 16,
+      "exit_status": "0xC0000005",
+      "software_vulkan_driver_sha256": "2db1610d1c7ce82c7a5d86cf9cfaff4d2e3d6fe7a38fb784b81cfc27eef167e6"
+    },
+    "upstream": {
+      "commit": "63cca6e0611425a11e6d8421f589fb367ac27d03",
+      "run": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45360055686/job/138327522397",
+      "artifact_id": 14906004331,
+      "driver_sha256": "2db1610d1c7ce82c7a5d86cf9cfaff4d2e3d6fe7a38fb784b81cfc27eef167e6",
+      "scene_prims": 16,
+      "exit_code": 0,
+      "requested_world_frame_captured": true,
+      "raw_image_sha256": "6bd4579a9ca307ac892b065ed6a6f57e10c9fae50f51ca05e38a133dd9e38a99",
+      "postprocess": "Windows held the redirected stderr file open after normal exit. The uploaded PNG and logs were checked offline."
+    }
+  },
+  "mesa_lavapipe": {
+    "driver": "llvmpipe (LLVM 23.1.5, 256 bits) (Vulkan, driver llvmpipe Mesa 26.3.1 (LLVM 23.1.5), memory 16378 MB dedicated)",
+    "driver_sha256": "ca4814fc85a75179af05ad00092e4b09c583e8fede67f1c0391e366019972f3b",
+    "viewer_exit_code": 0,
+    "scene": "16-prim offline shadow slope, High directional shadows and contact shadows, 800 by 560, 100% scale",
+    "raw_job": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45363769384/job/138340116333",
+    "artifact_id": 14908176199,
+    "artifact_sha256": "30fafc99ebdad8d9b0a6485f5dfde799158287d35648de17ffcc73840abee654",
+    "frames": [
+      {
+        "request_frame": 60,
+        "file": "world-60.png",
+        "present": true,
+        "sha256": "266824ba6bd2cdcecd0517fb7d4236272277207f00fd5effa24f6b5c184a740c",
+        "pixels": {
+          "nonblack": 10080,
+          "height": 560,
+          "width": 800,
+          "rgb_444_bins": 291,
+          "visual_nonuniform": true,
+          "samples": 10080
+        },
+        "logged": true,
+        "ui_off_logged": true,
+        "world_only": false
+      },
+      {
+        "request_frame": 605,
+        "file": "world-605.png",
+        "present": true,
+        "sha256": "6033780df653fd9bf8b08e0e845b354f57e279af98066c399119fb57c48ab317",
+        "pixels": {
+          "nonblack": 10080,
+          "height": 560,
+          "width": 800,
+          "rgb_444_bins": 290,
+          "visual_nonuniform": true,
+          "samples": 10080
+        },
+        "logged": true,
+        "ui_off_logged": true,
+        "world_only": true
+      },
+      {
+        "request_frame": 650,
+        "file": "world-650.png",
+        "present": true,
+        "sha256": "e4894f9cc079ef2f97a96f05d80b9be109f7857fc1707371bc1ff4e290c70381",
+        "pixels": {
+          "nonblack": 10080,
+          "height": 560,
+          "width": 800,
+          "rgb_444_bins": 287,
+          "visual_nonuniform": true,
+          "samples": 10080
+        },
+        "logged": true,
+        "ui_off_logged": true,
+        "world_only": true
+      }
+    ],
+    "postprocess": "The Windows helper attempted to read a still-open redirected stderr file after the viewer exited. The archived logs and PNGs were independently read and checked."
+  }
+}
