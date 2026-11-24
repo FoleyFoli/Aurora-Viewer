@@ -1,0 +1,102 @@
+name: Verify baked High shadows on Windows SwiftShader
+on:
+  push:
+    branches: [validation/windows-baked-swiftshader-f72]
+permissions:
+  contents: read
+  actions: read
+env:
+  DRIVER_SHA256: 2db1610d1c7ce82c7a5d86cf9cfaff4d2e3d6fe7a38fb784b81cfc27eef167e6
+  WINDOWS_SMOKE_DRIVER: chrome-swiftshader
+jobs:
+  smoke:
+    if: github.repository == 'FoleyFoli/Aurora-Viewer'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      DIAGNOSTIC_MODE: ordinary
+      SOURCE_COMMIT: f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0
+      SOURCE_TREE: 623f4f191845e083e87b80d912b55b5e9018c7e4
+      BUILD_RUN_ID: '45373467467'
+      BUILD_WORKFLOW_COMMIT: 4781388b5c1e2636b52af91d2849ee02a1773142
+      ARTIFACT_NAME: Aurora-Viewer-rendering-test-f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0
+      EXE_SHA256: 164ee9d04fe74f392f64fe80b757fc778372f0f6036ee7f97bc9dd85ceab5ead
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          sparse-checkout: .github/qa
+          persist-credentials: false
+      - name: Verify the pinned smoke harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .github/qa
+          for script in final-windows-software.ps1 collect-aurora-crash.ps1 verify-baked-slope.ps1; do
+            git cat-file blob "HEAD:.github/qa/$script" > "$script"
+          done
+          sha256sum -c <<'SHA'
+          65e055ab979737153109c3b22530bea3c5529fe6c0c4045fa7e9a2cc3e3841ec  final-windows-software.ps1
+          7e6f17154ef2f450dc58a09352f2b541a973728c338334499729a2c960c2a7fb  collect-aurora-crash.ps1
+          1cc510df99456e1e999c8e8202fa8b2e9919fc09774a76cf61d6bfc10aaf6f1c  verify-baked-slope.ps1
+          SHA
+      - name: Locate the exact client archive and record its GitHub digest
+        id: archive
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/windows-smoke
+          run="repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID"
+          gh api "$run" --jq '.head_sha' | grep -Fxq "$BUILD_WORKFLOW_COMMIT"
+          gh api "$run/artifacts" | jq -e --arg name "$ARTIFACT_NAME" --arg sha "$BUILD_WORKFLOW_COMMIT" --argjson run "$BUILD_RUN_ID" '
+             [.artifacts[] | select(.name == $name and .expired == false and
+               .workflow_run.id == $run and .workflow_run.head_sha == $sha and (.digest | test("^sha256:[a-f0-9]{64}$")))] |
+             if length == 1 then .[0] | {id,name,digest,workflow_run} else error("Archive identity mismatch") end' > evidence/windows-smoke/source-artifact.json
+          jq -e '.id == 14911367202 and .digest == "sha256:0ce51e220a57851e105dd14aa7de96a3ddcb8e27a1468b7e52f71ed802a5d73b"' evidence/windows-smoke/source-artifact.json
+          echo "id=$(jq -r '.id' evidence/windows-smoke/source-artifact.json)" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BUILD_RUN_ID }}
+          artifact-ids: ${{ steps.archive.outputs.id }}
+          merge-multiple: true
+          path: test-client
+      - name: Load the proven Mesa slope capture
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: 45363769384
+          artifact-ids: 14908176199
+          merge-multiple: true
+          path: reference/mesa
+      - name: Load the corresponding disabled-shadow control
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: 45367845749
+          artifact-ids: 14906763992
+          merge-multiple: true
+          path: reference/unshadowed
+      - name: Run the offline SwiftShader demo with the named test setting
+        id: smoke
+        shell: pwsh
+        run: ./.github/qa/final-windows-software.ps1
+      - name: Collect viewer and Windows crash records from this launch
+        if: always() && !cancelled() && steps.smoke.outcome != 'skipped'
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP "aurora-windows-smoke-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          ./.github/qa/collect-aurora-crash.ps1 -ViewerRoot $root -SmokeOutput 'evidence/windows-smoke'
+          $result = Get-Content -LiteralPath evidence/windows-smoke/result.json -Raw | ConvertFrom-Json
+          if ($result.software_driver.sha256 -cne $env:DRIVER_SHA256) { throw 'Different software driver; see result.json' }
+      - name: Verify the baked fallback, shadowed ramp, and adjacent lit ground
+        shell: pwsh
+        run: ./.github/qa/verify-baked-slope.ps1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always() && !cancelled()
+        with:
+          name: windows-baked-swiftshader-${{ env.SOURCE_COMMIT }}
+          path: evidence/windows-smoke/
+          if-no-files-found: error
+          retention-days: 14
