@@ -1,0 +1,573 @@
+{
+  "candidate": "57d978f7a97d89c358fb40c838201d1c226ff84d",
+  "upstream": "86b9cdacc3060b052159fa20e368ff4369b0c492",
+  "rows": [
+    {
+      "mode": "shadow-source-control",
+      "run": 45343775738,
+      "artifact": 14896933806,
+      "artifact_sha256": "a73b977134fba6887dfbab8a636a4da43a9b1803a2508b1e7a37254f6068ca84",
+      "cases": {
+        "candidate": {
+          "passed": false,
+          "visible": false,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 0,
+            "pixels": 537600,
+            "interior_nonblack": 0,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 1
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 2,
+          "aborted_command_buffers": 12848,
+          "errors_total": 12848
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 385
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "validation-both",
+      "run": 45343775738,
+      "artifact": 14897318350,
+      "artifact_sha256": "1ed6120ac2df68290e5edd4dccfbacf8fc42a964ff4b713fbe11ab86841fa010",
+      "cases": {
+        "candidate": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 436
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 384
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "shadow-graph-bypass",
+      "run": 45343775738,
+      "artifact": 14897343782,
+      "artifact_sha256": "dc350060bb2778d8be1f85f94b823939e6c3ff0a1d4f5f9b9fb27cb615c15c2d",
+      "cases": {
+        "candidate": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 411
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 378
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "metal-api-only",
+      "run": 45343775738,
+      "artifact": 14897402464,
+      "artifact_sha256": "cb2754602008a06d2bc7cf13624b757b7385cf5abb87caef69b7bf06a71f5d29",
+      "cases": {
+        "candidate": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 418
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 374
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "dof-off",
+      "run": 45343775738,
+      "artifact": 14897453124,
+      "artifact_sha256": "2e73e18f619400cc3f59a09106046f36cda7e3a43d8d3423f5a25c7738c0da5d",
+      "cases": {
+        "candidate": {
+          "passed": false,
+          "visible": false,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 0,
+            "pixels": 537600,
+            "interior_nonblack": 0,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 1
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 3,
+          "aborted_command_buffers": 50944,
+          "errors_total": 50944
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 476
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "wgpu-only",
+      "run": 45343775738,
+      "artifact": 14897771648,
+      "artifact_sha256": "ce603055782583bfc9a291946b5cffc73dc31bf44eb426c77fd9636025043c96",
+      "cases": {
+        "candidate": {
+          "passed": false,
+          "visible": false,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 0,
+            "pixels": 537600,
+            "interior_nonblack": 0,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 1
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 5,
+          "aborted_command_buffers": 3612,
+          "errors_total": 3612
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 377
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "pacing-always",
+      "run": 45345208248,
+      "artifact": 14897807881,
+      "artifact_sha256": "6ac8159b366f6774feac2a2651d416c277b4e6d3f560c00aaacebc0e85a8a09b",
+      "cases": {
+        "candidate": {
+          "passed": false,
+          "visible": false,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 0,
+            "pixels": 537600,
+            "interior_nonblack": 0,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 1
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 3,
+          "aborted_command_buffers": 8157,
+          "errors_total": 8157
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 382
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "occlusion-off",
+      "run": 45343775738,
+      "artifact": 14897970346,
+      "artifact_sha256": "318ae52e3e8e50ff3fd2d12dc21fe473e7fb6d6076dfb9802b288465792755bb",
+      "cases": {
+        "candidate": {
+          "passed": false,
+          "visible": false,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 0,
+            "pixels": 537600,
+            "interior_nonblack": 0,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 1
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 5,
+          "aborted_command_buffers": 28496,
+          "errors_total": 28496
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 383
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "directional-both-hard",
+      "run": 45345474466,
+      "artifact": 14897997582,
+      "artifact_sha256": "49fbf72f69fc934ab5396d2e2faf6ee9b94f71bea3647067608b9aeec4374553",
+      "cases": {
+        "candidate": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 384
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 374
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "directional-debug-calls-off",
+      "run": 45345474466,
+      "artifact": 14898161976,
+      "artifact_sha256": "dc45ef2387b5f2091f4e9391d9319cab135a067c47779d63fac20bc4f264b0e4",
+      "cases": {
+        "candidate": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 389
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 381
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "directional-remote-hard",
+      "run": 45346198827,
+      "artifact": 14898331739,
+      "artifact_sha256": "fe7e11d6321a5c2956e11a1b960a2bc15666f7d1ec1eacc8e86b15adeed4e77b",
+      "cases": {
+        "candidate": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 376
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 378
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "ordinary",
+      "run": 45343775738,
+      "artifact": 14898351731,
+      "artifact_sha256": "187c6f8097247a670c866b850a0b781ad517dc79158d74e8c2d0fecca213077e",
+      "cases": {
+        "candidate": {
+          "passed": false,
+          "visible": false,
+          "exit": "timeout",
+          "pixels": null,
+          "native_query_errors": [
+            "UI-hidden frame 780",
+            "960x560 capture"
+          ],
+          "gpu_timeouts": 5,
+          "aborted_command_buffers": 1244,
+          "errors_total": 1244
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 372
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    },
+    {
+      "mode": "directional-local-hard",
+      "run": 45346198827,
+      "artifact": 14898446577,
+      "artifact_sha256": "eeee35240ad13b2628a3408127630267cb3c098671270ae180ea1114d8c3bd2d",
+      "cases": {
+        "candidate": {
+          "passed": false,
+          "visible": false,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 0,
+            "pixels": 537600,
+            "interior_nonblack": 0,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 1
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 2,
+          "aborted_command_buffers": 2632,
+          "errors_total": 2632
+        },
+        "upstream": {
+          "passed": true,
+          "visible": true,
+          "exit": 0,
+          "pixels": {
+            "width": 960,
+            "height": 560,
+            "nonblack": 537600,
+            "pixels": 537600,
+            "interior_nonblack": 386048,
+            "interior_pixels": 386048,
+            "interior_rgb_bins": 381
+          },
+          "native_query_errors": [],
+          "gpu_timeouts": 0,
+          "aborted_command_buffers": 0,
+          "errors_total": 0
+        }
+      }
+    }
+  ]
+}

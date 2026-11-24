@@ -1,0 +1,125 @@
+{
+  "upstream": {
+    "source": "63cca6e0611425a11e6d8421f589fb367ac27d03",
+    "tree": "8287f97e3faf6536e77da3a5aa31ce6972b827cd",
+    "exe_sha256": "e4aafdb90ada965ccf0ed0ab76d83624bf0d699e1f5f2f61f1a414c2886551de",
+    "cases": {
+      "surface-cycle": {
+        "viewer_exit": 0,
+        "passed": true,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 379,
+        "native_gpu_error_lines": 0,
+        "driver_timeouts": 0
+      },
+      "hair-close": {
+        "viewer_exit": 0,
+        "passed": true,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 182,
+        "native_gpu_error_lines": 0,
+        "driver_timeouts": 0,
+        "hair_camera_at_frame_641": "demo camera f641: ThirdPerson, pos Vec3(132.10, 128.55, 33.86), target Vec3(132.87, 128.94, 33.47), fov 60.0\u00b0, on avatar false, orbit 0.00, pitch 0.00, zoom 1.00, animating false (mouse None, agent yaw 0.46, right orbit=false, menu=false, down=false, cursor held=false, alt free=false, typing=false)"
+      },
+      "shadow-slope": {
+        "viewer_exit": 0,
+        "passed": true,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 521,
+        "native_gpu_error_lines": 0,
+        "driver_timeouts": 0
+      }
+    }
+  },
+  "before_repair": {
+    "source": "4e496d7b6f4d79c134ac7779fc2778116a4194b0",
+    "tree": "86e02c524688fbc920045be14705b3f856ae63f2",
+    "exe_sha256": "765ed757c31c1e6183303f4408503ff79c038c8ab1a03961f851bca483a3c83e",
+    "cases": {
+      "surface-cycle": {
+        "viewer_exit": 0,
+        "passed": false,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 399,
+        "native_gpu_error_lines": 2,
+        "driver_timeouts": 2
+      },
+      "hair-close": {
+        "viewer_exit": 0,
+        "passed": false,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 353,
+        "native_gpu_error_lines": 2,
+        "driver_timeouts": 2,
+        "hair_camera_at_frame_641": "demo camera f641: ThirdPerson, pos Vec3(130.32, 127.66, 34.75), target Vec3(133.89, 129.45, 33.87), fov 60.0\u00b0, on avatar true, orbit 0.00, pitch 0.00, zoom 1.00, animating false (mouse None, agent yaw 0.46, right orbit=false, menu=false, down=false, cursor held=false, alt free=false, typing=false)"
+      },
+      "shadow-slope": {
+        "viewer_exit": 0,
+        "passed": false,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 520,
+        "native_gpu_error_lines": 2,
+        "driver_timeouts": 2
+      }
+    }
+  },
+  "repair": {
+    "source": "75c022abdbaad690ab14975674ec900ace2c51fe",
+    "tree": "4d449b0369533d5e5ea857b09da08b6040c2788e",
+    "exe_sha256": "cc6d26e240879b5d50b4378a379e09c928e55fa51537bdfec3a3cff8e4eec353",
+    "cases": {
+      "surface-cycle": {
+        "viewer_exit": 0,
+        "passed": true,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 394,
+        "native_gpu_error_lines": 0,
+        "driver_timeouts": 0
+      },
+      "hair-close": {
+        "viewer_exit": 0,
+        "passed": true,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 186,
+        "native_gpu_error_lines": 0,
+        "driver_timeouts": 0,
+        "hair_camera_at_frame_641": "demo camera f641: ThirdPerson, pos Vec3(132.10, 128.55, 33.86), target Vec3(132.88, 128.94, 33.47), fov 60.0\u00b0, on avatar false, orbit 0.00, pitch 0.00, zoom 1.00, animating false (mouse None, agent yaw 0.46, right orbit=false, menu=false, down=false, cursor held=false, alt free=false, typing=false)"
+      },
+      "shadow-slope": {
+        "viewer_exit": 0,
+        "passed": true,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 515,
+        "native_gpu_error_lines": 0,
+        "driver_timeouts": 0
+      }
+    }
+  }
+}

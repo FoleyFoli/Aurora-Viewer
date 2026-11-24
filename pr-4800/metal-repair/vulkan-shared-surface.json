@@ -1,0 +1,54 @@
+{
+  "candidate": "75c022abdbaad690ab14975674ec900ace2c51fe",
+  "candidate_tree": "4d449b0369533d5e5ea857b09da08b6040c2788e",
+  "comparison_base": "63cca6e0611425a11e6d8421f589fb367ac27d03",
+  "scope": "aurora-render library tests, CI profile, two software Vulkan implementations",
+  "tests_passing_at_least_one_adapter": 750,
+  "tests_passing_both_adapters": 747,
+  "results": {
+    "Mesa llvmpipe": {
+      "summary": "test result: FAILED. 749 passed; 1 failed; 41 ignored; 0 measured; 0 filtered out; finished in 99.23s",
+      "failed": [
+        "terrain_tests::pbr_terrain_samples_all_layers_maps_and_triplanar_normals_on_gpu"
+      ]
+    },
+    "SwiftShader": {
+      "summary": "test result: FAILED. 748 passed; 2 failed; 41 ignored; 0 measured; 0 filtered out; finished in 146.96s",
+      "failed": [
+        "looks::tests::the_gpu_draws_every_legacy_look_like_the_legacy_viewer",
+        "shader_tests::water_mesh_depth_clamp_preserves_coverage_and_occlusion_on_gpu"
+      ]
+    },
+    "upstream_Mesa_focused": {
+      "summary": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 767 filtered out; finished in 0.19s",
+      "failed": [
+        "terrain_tests::pbr_terrain_samples_all_layers_maps_and_triplanar_normals_on_gpu"
+      ]
+    },
+    "upstream_SwiftShader_focused": {
+      "summary": "test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 766 filtered out; finished in 35.72s",
+      "failed": [
+        "looks::tests::the_gpu_draws_every_legacy_look_like_the_legacy_viewer",
+        "shader_tests::water_mesh_depth_clamp_preserves_coverage_and_occlusion_on_gpu"
+      ]
+    }
+  },
+  "directional_shader_readback": {
+    "llvmpipe": {
+      "device": "llvmpipe (LLVM 19.1.7, 256 bits)",
+      "cases": 2560,
+      "byte_equal": true,
+      "mismatches": 0,
+      "max_error": 0.0,
+      "first": []
+    },
+    "SwiftShader": {
+      "device": "SwiftShader Device (Subzero)",
+      "cases": 2560,
+      "byte_equal": true,
+      "mismatches": 0,
+      "max_error": 0.0,
+      "first": []
+    }
+  }
+}

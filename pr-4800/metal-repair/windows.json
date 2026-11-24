@@ -1,0 +1,41 @@
+{
+  "source_commit": "75c022abdbaad690ab14975674ec900ace2c51fe",
+  "source_tree": "4d449b0369533d5e5ea857b09da08b6040c2788e",
+  "stock_check": {
+    "script": "scripts/check.ps1",
+    "platform": "GitHub-hosted Windows",
+    "shell": "PowerShell 7",
+    "script_parser": "Windows PowerShell 5.1",
+    "job": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45346318145/job/138281632561",
+    "rust_test_groups": 40,
+    "passed": 12108,
+    "failed": 0,
+    "ignored": 68
+  },
+  "portable_package": {
+    "file_count": 22,
+    "artifact_id": 14903570183,
+    "artifact_bytes": 101933146,
+    "artifact_sha256": "c6dd003a9b2165b3b2520fdf538d07dbb5a0cb1091510c3bcdb9b8746f52892a",
+    "zip_sha256": "0690bf78bdf0d37168af686c8de4f580c4cdc66848414f8595e7e134eca37e05",
+    "exe_sha256": "efb10d920947afeed6f424df6675cf70aea98d228adff14ad4db375b6ea864ce"
+  },
+  "stock_launch": {
+    "run": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45346318145/job/138318420551",
+    "process_started": true,
+    "result": "unavailable-no-presentable-vulkan-adapter",
+    "detail": "Vulkan lists no graphics card after all retries"
+  },
+  "software_vulkan_launch": {
+    "status": "failed",
+    "process_started": true,
+    "exit_code": -1073741819,
+    "detail": "Packaged viewer exited with -1073741819",
+    "zip_sha256": "0690bf78bdf0d37168af686c8de4f580c4cdc66848414f8595e7e134eca37e05",
+    "exe_sha256": "efb10d920947afeed6f424df6675cf70aea98d228adff14ad4db375b6ea864ce",
+    "run": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45357523456",
+    "adapter_from_viewer_log": "SwiftShader Device (Subzero) (Vulkan, driver SwiftShader driver , memory 2048 MB dedicated)",
+    "first_frame_presented": true,
+    "requested_frame_650_captured": false
+  }
+}
