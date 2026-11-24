@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [metal-api-only, wgpu-only, shadow-graph-bypass, occlusion-off]
+        mode: [ordinary, metal-api-only, wgpu-only, validation-both, dof-off, shadow-source-control, shadow-graph-bypass, occlusion-off]
     env:
       BUILD_RUN: '45129232727'
       BEFORE: 86b9cdacc3060b052159fa20e368ff4369b0c492
@@ -31,6 +31,8 @@ jobs:
         shell: bash
         run: |
           mkdir diagnostics
+          sw_vers > diagnostics/runner.txt
+          printf 'ImageOS=%s ImageVersion=%s RUNNER_ARCH=%s\n' "$ImageOS" "$ImageVersion" "$RUNNER_ARCH" >> diagnostics/runner.txt
           metadata="repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN"
           gh api "$metadata" --jq '.head_sha' | grep -Fxq f8962fd5a2d10ac812f3e46c5fc091248dcf2fe9
           gh api "$metadata/artifacts" > "$RUNNER_TEMP/artifacts.json"
@@ -72,6 +74,11 @@ jobs:
         if: always() && !cancelled()
         shell: bash
         run: /usr/bin/log show --last 25m --style compact --predicate 'process == "aurora-viewer"' --info > diagnostics/native-system.log 2>&1 || true
+      - name: Assess both world captures and native logs
+        if: always() && !cancelled()
+        env:
+          MODE: ${{ matrix.mode }}
+        run: python3 .github/qa/assess-metal.py diagnostics "$MODE"
       - name: Upload raw evidence and measurements
         if: always() && !cancelled()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

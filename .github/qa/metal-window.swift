@@ -30,18 +30,20 @@ func statistics(path: String) -> String? {
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: CGFloat(w), height: CGFloat(h)))
         let rgb = raw.bindMemory(to: UInt8.self)
         var coloured = 0, interior = 0, interiorPixels = 0
+        var bins = Set<Int>()
         for y in 0..<h {
             for x in 0..<w {
                 let p = (y * w + x) * 4
                 let lit = (rgb[p] | rgb[p+1] | rgb[p+2]) != 0
                 if lit { coloured += 1 }
                 if y >= 48 && y < h - 48 && x >= 64 && x < w - 64 {
+                    bins.insert((Int(rgb[p]) >> 4) << 8 | (Int(rgb[p+1]) >> 4) << 4 | (Int(rgb[p+2]) >> 4))
                     interiorPixels += 1
                     if lit { interior += 1 }
                 }
             }
         }
-        return "\(w)\t\(h)\t\(coloured)\t\(w*h)\t\(interior)\t\(interiorPixels)"
+        return "\(w)\t\(h)\t\(coloured)\t\(w*h)\t\(interior)\t\(interiorPixels)\t\(bins.count)"
     }
 }
 

@@ -2,19 +2,40 @@
 import hashlib
 import json
 import os
+import math
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 TEMP = Path(sys.argv[1]).resolve()
 OUT = Path(sys.argv[2]).resolve()
 MODE = sys.argv[3]
-if MODE not in {"metal-api-only", "wgpu-only", "shadow-graph-bypass", "occlusion-off"}:
+if MODE not in {"ordinary", "metal-api-only", "wgpu-only", "validation-both", "shadow-source-control", "shadow-graph-bypass", "occlusion-off", "dof-off"}:
     raise ValueError(f"Unknown validation mode: {MODE}")
 SOURCE = Path.cwd() / "crates/aurora-render/src/shaders"
 OUT.mkdir(exist_ok=True)
+
+
+def collect_native(name, pid, started):
+    # The relative window starts just before this launch. The PID attributes
+    # entries to this viewer even if the two cases finish close together.
+    time.sleep(2)
+    window = f"{math.ceil(time.monotonic() - started) + 1}s"
+    proc = subprocess.run(
+        ["/usr/bin/log", "show", "--last", window, "--style", "compact", "--info",
+         "--predicate", f"processID == {pid}"],
+        text=True, capture_output=True, timeout=90,
+    )
+    (OUT / f"{name}-native.log").write_text(proc.stdout)
+    (OUT / f"{name}-native-stderr.log").write_text(proc.stderr)
+    return {
+        "pid": pid, "query_exit": proc.returncode,
+        "native_rows": len(re.findall(rf"(?m)^.*aurora-viewer\[{pid}:", proc.stdout)),
+    }
 
 
 def run_viewer(side, name, override=None):
@@ -33,7 +54,7 @@ def run_viewer(side, name, override=None):
         (root / "profile").mkdir()
         prefs = dict.fromkeys(("show_people", "show_chat", "show_minimap", "show_perf"), False)
         (root / "profile/settings.json").write_text(json.dumps(prefs))
-        env = {k: v for k, v in os.environ.items() if not k.startswith(("AURORA_", "MTL_"))}
+        env = {k: os.environ[k] for k in ("HOME", "PATH", "TMPDIR", "LANG", "LC_ALL", "USER") if k in os.environ}
         env.update(
             AURORA_DEMO="1",
             AURORA_UPDATE_TEST_ROOT=str(root),
@@ -47,11 +68,13 @@ def run_viewer(side, name, override=None):
             AURORA_DEMO_UI_FEATURE="off",
             AURORA_LOG_NAME="metal-native",
             RUST_BACKTRACE="1",
-            RUST_LOG="info,wgpu_hal=debug,wgpu_core=warn,naga=warn,reqwest=warn",
+            RUST_LOG="info",
         )
-        if MODE == "metal-api-only":
+        if MODE == "dof-off":
+            del env["AURORA_DEMO_DOF"]
+        if MODE in {"metal-api-only", "validation-both"}:
             env["MTL_DEBUG_LAYER"] = "1"
-        elif MODE == "wgpu-only":
+        if MODE in {"wgpu-only", "validation-both"}:
             env["AURORA_GPU_VALIDATION"] = "1"
         elif MODE == "occlusion-off":
             env["AURORA_NO_OCCLUSION"] = "1"
@@ -59,7 +82,14 @@ def run_viewer(side, name, override=None):
             compiled_path = str(SOURCE.parent.parent).encode()
             if compiled_path not in exe.read_bytes():
                 raise RuntimeError("Archived executable does not contain the expected shader source directory")
-            shutil.copy2(override, SOURCE / "common.wgsl")
+            if MODE == "shadow-graph-bypass":
+                shutil.copy2(override, SOURCE / "common.wgsl")
+            expected = {
+                "shadow-graph-bypass": "10914b6531b5473a0c793421f2e61fd4ee3c75f4ee52281567d56c76e87ecf3b",
+                "shadow-source-control": "33a3070f6e044399697172750afb19625dcfe0637cb301fcabc09c22d7517667",
+            }[MODE]
+            if hashlib.sha256((SOURCE / "common.wgsl").read_bytes()).hexdigest() != expected:
+                raise RuntimeError("Unexpected shader fixture")
             env["AURORA_DEMO_WATER_SHADERS"] = "1"
             checksums = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in SOURCE.glob("*.wgsl")}
             (OUT / f"{name}-shaders.json").write_text(json.dumps(checksums, indent=2))
@@ -71,12 +101,16 @@ def run_viewer(side, name, override=None):
         print(f"Starting {name}", flush=True)
         with (OUT / f"{name}-console.log").open("wb") as console:
             try:
-                result = subprocess.run(
+                started = time.monotonic()
+                process = subprocess.Popen(
                     [exe, "--title", f"Test Metal {name}", "--language", "en"],
-                    cwd=install, env=env, stdout=console, stderr=subprocess.STDOUT, timeout=600,
-                ).returncode
+                    cwd=install, env=env, stdout=console, stderr=subprocess.STDOUT,
+                )
+                result = process.wait(timeout=600)
             except subprocess.TimeoutExpired:
                 result = "timeout"
+                process.kill()
+                process.wait()
             finally:
                 for path in root.glob("frame-*.png"):
                     shutil.copy2(path, OUT / f"{name}-{path.name}")
@@ -87,7 +121,7 @@ def run_viewer(side, name, override=None):
         if override and "using baked source" in console:
             raise RuntimeError("The source override fell back to the baked shader")
         print(f"Finished {name}, exit={result}", flush=True)
-        return {"case": name, "exit": result}
+        return {"case": name, "exit": result, **collect_native(name, process.pid, started)}
 
 
 # The isolation case disables directional-map sampling only for the candidate.
@@ -95,11 +129,13 @@ def run_viewer(side, name, override=None):
 override_path = None
 if MODE == "shadow-graph-bypass":
     override_path = Path.cwd() / ".github/qa/common-directional-graph-bypass.wgsl"
+elif MODE == "shadow-source-control":
+    override_path = SOURCE / "common.wgsl"
 results = [run_viewer("after", "candidate", override_path), run_viewer("before", "upstream")]
 
 (OUT / "results.json").write_text(json.dumps(results, indent=2))
 with (OUT / "pixels.tsv").open("w") as output:
-    print("image\twidth\theight\tnonblack\tpixels\tinterior_nonblack\tinterior_pixels", file=output)
+    print("image\twidth\theight\tnonblack\tpixels\tinterior_nonblack\tinterior_pixels\tinterior_rgb_bins", file=output)
     for image in sorted(OUT.glob("*.png")):
         stats = subprocess.check_output([TEMP / "metal-window", "stats", image], text=True).strip()
         print(image.name, stats, sep="\t", file=output)
