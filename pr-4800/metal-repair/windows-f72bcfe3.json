@@ -1,0 +1,179 @@
+{
+  "source": "f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0",
+  "tree": "623f4f191845e083e87b80d912b55b5e9018c7e4",
+  "fixture": "Packaged Aurora Viewer running its local demonstration world on native Windows with Vulkan software drivers. High shadows, 16 scene prims, UI hidden for capture at frame 650, 800 x 560.",
+  "windows_checks": {
+    "run": 45373467467,
+    "job_id": 138373380155,
+    "url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45373467467/job/138373380155",
+    "conclusion": "success",
+    "rust_test_groups": 40,
+    "passed": 12110,
+    "failed": 0,
+    "ignored": 68,
+    "all_green": true,
+    "shell": "PowerShell 7 on Windows, including Windows PowerShell 5.1 parser"
+  },
+  "packaged_client": {
+    "source_commit": "f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0",
+    "source_tree": "623f4f191845e083e87b80d912b55b5e9018c7e4",
+    "workflow_commit": "4781388b5c1e2636b52af91d2849ee02a1773142",
+    "run": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45373467467",
+    "portable_zip": "Aurora-Viewer-rendering-test-f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0.zip",
+    "zip_sha256": "436200bd84b55d0361c5edb76c65aab4dd8dbfc90316bc07f7858b496ba2b5a3",
+    "executable": {
+      "path": "aurora-viewer.exe",
+      "sha256": "164ee9d04fe74f392f64fe80b757fc778372f0f6036ee7f97bc9dd85ceab5ead",
+      "bytes": 254867968
+    },
+    "verified_archive_files": 22,
+    "files_checked_against_sha256sums": 21,
+    "actions_artifact": {
+      "id": 14911367202,
+      "bytes": 101937900,
+      "digest": "sha256:0ce51e220a57851e105dd14aa7de96a3ddcb8e27a1468b7e52f71ed802a5d73b",
+      "url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45373467467/artifacts/14911367202",
+      "expires_at": "2026-12-08T10:40:35Z"
+    }
+  },
+  "mesa_default_high": {
+    "run": 45377157646,
+    "job": 138386372423,
+    "artifact_id": 14911854960,
+    "artifact_sha256": "sha256:08b94157ddb569a5e9c5529fdbf6c34cc45d2b48c93aae2ff866c5dd6aa54fff",
+    "result": {
+      "status": "passed",
+      "source_commit": "f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0",
+      "source_tree": "623f4f191845e083e87b80d912b55b5e9018c7e4",
+      "adapter": "llvmpipe (LLVM 23.1.5, 256 bits) (Vulkan, driver llvmpipe Mesa 26.3.1 (LLVM 23.1.5), memory 16378 MB dedicated)",
+      "exe_sha256": "164ee9d04fe74f392f64fe80b757fc778372f0f6036ee7f97bc9dd85ceab5ead",
+      "exit_code": 0,
+      "pixels": {
+        "width": 800,
+        "height": 560,
+        "rgb_444_bins": 284,
+        "nonblack": 10080,
+        "visual_nonuniform": true,
+        "samples": 10080
+      },
+      "captures": [
+        {
+          "request_frame": 60,
+          "file": "world-60.png",
+          "present": true,
+          "sha256": "9960ee45ed8fdcdc08a7b83f63bd7163ae39675059afe69f2b81218e132e4262",
+          "pixels": {
+            "width": 800,
+            "height": 560,
+            "rgb_444_bins": 286,
+            "nonblack": 10080,
+            "visual_nonuniform": true,
+            "samples": 10080
+          },
+          "logged": true,
+          "ui_off_logged": true,
+          "world_only": false
+        },
+        {
+          "request_frame": 605,
+          "file": "world-605.png",
+          "present": true,
+          "sha256": "13f3caa29ad061da2767df2357d59b7df6d1cbb00bcee05b4af45b8df6ecd47c",
+          "pixels": {
+            "width": 800,
+            "height": 560,
+            "rgb_444_bins": 294,
+            "nonblack": 10080,
+            "visual_nonuniform": true,
+            "samples": 10080
+          },
+          "logged": true,
+          "ui_off_logged": true,
+          "world_only": true
+        },
+        {
+          "request_frame": 650,
+          "file": "world-650.png",
+          "present": true,
+          "sha256": "4d68c6307b2da47e377db0552c563a5e230c96fca1bd34cb536c1c2c34abf093",
+          "pixels": {
+            "width": 800,
+            "height": 560,
+            "rgb_444_bins": 284,
+            "nonblack": 10080,
+            "visual_nonuniform": true,
+            "samples": 10080
+          },
+          "logged": true,
+          "ui_off_logged": true,
+          "world_only": true
+        }
+      ]
+    },
+    "frame_file": "windows-f72bcfe3-mesa.png",
+    "job_url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45377157646/job/138386372423",
+    "closed_stream_crash_signatures": 0
+  },
+  "swiftshader_default_high": {
+    "viewer_runtime": {
+      "status": "passed",
+      "diagnostic_mode": "ordinary",
+      "requested_driver": "Chrome SwiftShader (software Vulkan)",
+      "source_commit": "f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0",
+      "source_tree": "623f4f191845e083e87b80d912b55b5e9018c7e4",
+      "build_workflow_commit": "4781388b5c1e2636b52af91d2849ee02a1773142",
+      "build_run_id": "45373467467",
+      "workflow_commit": "81e14a69211c88510c1b36c99aad100bbab47472",
+      "workflow_run": "45377122321",
+      "process_started": true,
+      "adapter": "SwiftShader Device (Subzero) (Vulkan, driver SwiftShader driver , memory 2048 MB dedicated)",
+      "zip_sha256": "436200bd84b55d0361c5edb76c65aab4dd8dbfc90316bc07f7858b496ba2b5a3",
+      "exe_sha256": "164ee9d04fe74f392f64fe80b757fc778372f0f6036ee7f97bc9dd85ceab5ead",
+      "software_driver": {
+        "browser_version": "157.0.8103.79",
+        "sha256": "2db1610d1c7ce82c7a5d86cf9cfaff4d2e3d6fe7a38fb784b81cfc27eef167e6",
+        "source": "C:\\Program Files\\Google\\Chrome\\Application\\157.0.8103.79\\vk_swiftshader.dll",
+        "runtime_name": "vulkan-1.dll"
+      },
+      "pid": 6308,
+      "exit_code": 0,
+      "adapter_candidates": [
+        "GPU adapter 0: SwiftShader Device (Subzero) (software, 2048 MB dedicated, can present)"
+      ],
+      "pixels": {
+        "nonblack": 10080,
+        "samples": 10080,
+        "rgb_444_bins": 280,
+        "width": 800,
+        "height": 560
+      }
+    },
+    "job_url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45377122321/job/138386250364",
+    "artifact_id": 14911238583,
+    "artifact_sha256": "f50a1753fcf2dfa45081e2283af6e0ae44cc56bf987b7fb55e21d7881591b947",
+    "frame_file": "windows-f72bcfe3-swiftshader.png",
+    "frame_650_sha256": "7f7735c1112d17571ac19138b5f30181aa9253ae7df6b234d10d25874ed4fa91",
+    "driver_behavior": "Chrome SwiftShader uses the three-cascade layout. Other adapters can use the separate near and portrait shadow maps. The requested resolution, distance, soft directional filtering and contact shadows are retained.",
+    "previous_behavior": "On the same Chrome driver the previous candidate at a9ba60f9 exited before the capture with Windows exception 0xC0000005. The upstream control reached frame 650.",
+    "cross_layout_comparison": {
+      "status": "failed original 80% threshold",
+      "description": "Dark pixels on the 35-degree ramp relative to the archived Mesa four-level High reference, using the directional-shadow-disabled frame as a control. The camera and fixture match. Disabling the additional near map moves the edge.",
+      "visible_shadow_reference": "e4894f9cc079ef2f97a96f05d80b9be109f7857fc1707371bc1ff4e290c70381",
+      "disabled_shadow_reference": "aaa8014d884bf569cea537d0adbea8942b4c2e56f7e070f28209957fd341d74a",
+      "capture_sha256": "7f7735c1112d17571ac19138b5f30181aa9253ae7df6b234d10d25874ed4fa91",
+      "core_pixels": 6083,
+      "core_retained": 2879,
+      "core_reference_darkening": 22.68661296509444,
+      "core_measured_darkening": 10.151350758945677,
+      "adjacent_lit_pixels": 3464,
+      "adjacent_lit_retained": 3464,
+      "core_retention_percent": 47.33,
+      "lit_retention_percent": 100
+    }
+  },
+  "coverage": "The final Windows runs used software Vulkan. The previous human review covered the Windows client at 57d978f7.",
+  "matched_three_cascade_comparison": {
+    "run_url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45380458726",
+    "status": "in progress"
+  }
+}

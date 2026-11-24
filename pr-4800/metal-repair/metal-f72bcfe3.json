@@ -1,0 +1,182 @@
+{
+  "source_commit": "f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0",
+  "source_tree": "623f4f191845e083e87b80d912b55b5e9018c7e4",
+  "source_equivalence_audit": {
+    "previous_metal_capture_commit": "75c022abdbaad690ab14975674ec900ace2c51fe",
+    "exact_candidate": "f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0",
+    "tree": "623f4f191845e083e87b80d912b55b5e9018c7e4",
+    "shader_directory_git_tree": "bcf88dc0c222465430b8777f4fbbc0251c041043",
+    "wgsl_files_in_identical_directory": 67,
+    "baked_common_and_spectrum_sha256": "0f0352ba336f86b223c522474df9f34ecbb38ea7d160c43aecfa0dcdcb9edfc6",
+    "changed_paths": [
+      "TASKS.md",
+      "crates/aurora-render/src/lib.rs",
+      "crates/aurora-render/src/main_thread.rs",
+      "crates/aurora-render/src/oit_stochastic.rs",
+      "crates/aurora-render/src/renderer.rs",
+      "crates/aurora-viewer/src/app/snapshot.rs",
+      "crates/aurora-viewer/src/snapshot/quality.rs"
+    ],
+    "production_function_comparison": "200 complete production shader assembly comparisons passed",
+    "coverage": "Real wgpu AdapterInfo and Limits, Metal integrated/discrete/CPU/other identities, five binding limits by five sampled-texture limits, both projector soft-path specializations. The other identity fields are set to the affected vendor/device/driver to isolate the Metal exclusion. Byte-for-byte common module and detail-allocation admission matched the previously captured source for every case.",
+    "identical_source_assembly": [
+      "Metal scene shader factory",
+      "descriptor-tier aliases in detail and portrait inputs",
+      "baked/file source loading",
+      "SOFT_PATH path for scene, SSR and impostor shaders",
+      "stochastic OIT common module, with entrypoint and binding extensions unchanged"
+    ],
+    "snapshot_settings": "For Metal, graded_shadow_layout_available is true. Requested layout still chooses the map resolution; the detail/portrait byte guards therefore reduce to the earlier expressions. No settings, preset, camera, AA, bind-group entries or graded WGSL paths changed.",
+    "cargo_tests": {
+      "group": "aurora-render::shader_tests",
+      "environment": "Explicit Mesa llvmpipe Vulkan ICD on Linux, repo CI profile, --locked, --offline",
+      "passed": 34,
+      "failed": 0
+    },
+    "control": {
+      "linux_chrome_swiftshader_full_shader_group": "33/34 (all shading-specific source tests passed)",
+      "independent_75c_control": "The same water_mesh_depth_clamp_preserves_coverage_and_occlusion_on_gpu pixel (0,7) fails in the independently rebuilt 75c and f72 on this local SwiftShader version; expected blue, read red with no occluder. The test body also matches upstream 63cca6e0 SHA256 09a527f4c313226d034cc517eb10494c3401bd3c9e86884f144b250cc48bf2de. Verified separately from native Metal."
+    }
+  },
+  "workflow_attempts": [
+    {
+      "run": 45373467467,
+      "job_id": 138373380588,
+      "workflow_commit": "4781388b5c1e2636b52af91d2849ee02a1773142",
+      "runner_label": "macos-15",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "assigned_runner": "",
+      "started_steps": 0,
+      "started": "2026-11-24T10:18:07Z",
+      "ended": "2026-11-24T10:33:08Z",
+      "annotations": [
+        "The job was not acquired by Runner of type hosted even after multiple attempts",
+        "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times."
+      ]
+    },
+    {
+      "run": 45375976889,
+      "job_id": 138382279852,
+      "workflow_commit": "4cd0b20011af080703190eac0f9135dd12ae7362",
+      "runner_label": "macos-15-intel",
+      "status": "completed",
+      "preflight": "MTLCreateSystemDefaultDevice and queue creation succeeded; a GPU blit completed and returned the expected byte from a shared buffer.",
+      "conclusion": "failure",
+      "native_build": "success",
+      "native_build_elapsed": "24m 14s",
+      "runner_macos": "15.7.9 Intel x86_64",
+      "adapter": "Apple Paravirtualized Graphics Device, Metal 2",
+      "native_artifacts": {
+        "executable_archive": {
+          "id": 14914550189,
+          "zip_sha256": "663366e8053096993f993b6888e9a2ddd1276367c1116957d0c5cb1141241f2a",
+          "unpacked_executable_sha256": "95d1a8e529312cd169b69915459a5088d6caa229ee081681242ff0f3f8cf13a8",
+          "executable_bytes": 422483440
+        },
+        "host_and_viewer_logs": {
+          "id": 14913481256,
+          "zip_sha256": "aea6b3ad4f34692e8753afae9fc62eb10317272ea11fd36d70cb74d01b3ba6eb"
+        }
+      }
+    }
+  ],
+  "earlier_native_capture": {
+    "job": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45346318145",
+    "evidence_artifact_id": 14898549538,
+    "evidence_archive_sha256": "69aa3f4c1007806b3eeb41b81d16eccf0c4dc4d98d22c4453f29c8836ef4f555",
+    "summary": "Three ordinary Metal frames and camera-matched hair passed on macOS 15 with zero per-process GPU errors. See matched-metal.json.",
+    "source": "75c022abdbaad690ab14975674ec900ace2c51fe",
+    "tree": "4d449b0369533d5e5ea857b09da08b6040c2788e",
+    "exe_sha256": "cc6d26e240879b5d50b4378a379e09c928e55fa51537bdfec3a3cff8e4eec353",
+    "cases": {
+      "surface-cycle": {
+        "viewer_exit": 0,
+        "passed": true,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 394,
+        "native_gpu_error_lines": 0,
+        "driver_timeouts": 0
+      },
+      "hair-close": {
+        "viewer_exit": 0,
+        "passed": true,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 186,
+        "native_gpu_error_lines": 0,
+        "driver_timeouts": 0,
+        "hair_camera_at_frame_641": "demo camera f641: ThirdPerson, pos Vec3(132.10, 128.55, 33.86), target Vec3(132.88, 128.94, 33.47), fov 60.0\u00b0, on avatar false, orbit 0.00, pitch 0.00, zoom 1.00, animating false (mouse None, agent yaw 0.46, right orbit=false, menu=false, down=false, cursor held=false, alt free=false, typing=false)"
+      },
+      "shadow-slope": {
+        "viewer_exit": 0,
+        "passed": true,
+        "width": 960,
+        "height": 560,
+        "interior_pixels": 386048,
+        "interior_nonblack": 386048,
+        "quantized_rgb_bins": 515,
+        "native_gpu_error_lines": 0,
+        "driver_timeouts": 0
+      }
+    },
+    "independent_raw_png_sha256": {
+      "surface-cycle": "8c6078f857518fac40daa813513759abe7af37602ee203dce817c79deb2e063e",
+      "hair-close": "2dc50a2d1821e484ef141507dfa71a550cb3ec8aa47f8d5359902353ac0f29a9",
+      "shadow-slope": "1c6fb826e38d6a8991e41130dcd6b4074952837454432514457f6f056cdaee1d"
+    },
+    "raw_png_recheck": "Decoded independent raw PNGs, checked exact size and interior colors, verified the close-camera pose against upstream, and read per-process native logs."
+  },
+  "final_source_capture": {
+    "status": "No frame on the exact final revision",
+    "explanation": "The ARM runner could not acquire hosting capacity. The Intel build and a native Metal readback passed, but the device refused Aurora\u2019s required texture descriptor indexing at startup in every fixture. All three viewers exited before any draw or image write.",
+    "native_executable_verified": true,
+    "native_executable_sha256": "95d1a8e529312cd169b69915459a5088d6caa229ee081681242ff0f3f8cf13a8",
+    "native_source_verified": {
+      "commit": "f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0",
+      "tree": "623f4f191845e083e87b80d912b55b5e9018c7e4",
+      "parents": "a9ba60f9c985eba6f80df68fcf40212c14cae2d2",
+      "subject": "Use three directional shadow cascades on the SwiftShader Vulkan driver",
+      "workflow": "4cd0b20011af080703190eac0f9135dd12ae7362",
+      "run": "45375976889"
+    },
+    "unchanged_capability_check": {
+      "file": "crates/aurora-render/src/main_thread.rs",
+      "function": "open_device",
+      "source_sha256_of_required_condition": "9d448721a79fe7e7f2bf65935ddac0343270d4256fe9d2b988737786d395575a",
+      "compared_revisions": [
+        "f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0",
+        "75c022abdbaad690ab14975674ec900ace2c51fe",
+        "63cca6e0611425a11e6d8421f589fb367ac27d03"
+      ]
+    },
+    "cases": {
+      "surface-cycle": {
+        "viewer_exit": 0,
+        "frame_produced": false,
+        "process_scoped_gpu_errors_before_draw": 0,
+        "renderer_opened": false,
+        "native_pid": 26763
+      },
+      "hair-close": {
+        "viewer_exit": 0,
+        "frame_produced": false,
+        "process_scoped_gpu_errors_before_draw": 0,
+        "renderer_opened": false,
+        "native_pid": 26801
+      },
+      "shadow-slope": {
+        "viewer_exit": 0,
+        "frame_produced": false,
+        "process_scoped_gpu_errors_before_draw": 0,
+        "renderer_opened": false,
+        "native_pid": 26984
+      }
+    }
+  }
+}

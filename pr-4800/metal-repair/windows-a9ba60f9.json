@@ -56,7 +56,9 @@
       "exit_code": 0,
       "requested_world_frame_captured": true,
       "raw_image_sha256": "6bd4579a9ca307ac892b065ed6a6f57e10c9fae50f51ca05e38a133dd9e38a99",
-      "postprocess": "Windows held the redirected stderr file open after normal exit. The uploaded PNG and logs were checked offline."
+      "postprocess": "Windows held the redirected stderr file open after normal exit. The uploaded PNG and logs were checked offline.",
+      "share_safe_repeat": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45366865078/job/138350717114",
+      "share_safe_repeat_status": "success"
     }
   },
   "mesa_lavapipe": {
@@ -120,6 +122,8 @@
         "world_only": true
       }
     ],
-    "postprocess": "The Windows helper attempted to read a still-open redirected stderr file after the viewer exited. The archived logs and PNGs were independently read and checked."
+    "postprocess": "The Windows helper attempted to read a still-open redirected stderr file after the viewer exited. The archived logs and PNGs were independently read and checked.",
+    "independent_verification": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45368830049/job/138357486485",
+    "verification_status": "success"
   }
 }
