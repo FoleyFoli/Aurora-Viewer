@@ -1,0 +1,108 @@
+name: Compare upstream on Windows software Vulkan
+on:
+  push:
+    branches: [validation/windows-upstream-swiftshader-63cca6e0]
+permissions:
+  contents: read
+env:
+  SOURCE_COMMIT: 63cca6e0611425a11e6d8421f589fb367ac27d03
+  SOURCE_TREE: 8287f97e3faf6536e77da3a5aa31ce6972b827cd
+  DRIVER_SHA256: 2db1610d1c7ce82c7a5d86cf9cfaff4d2e3d6fe7a38fb784b81cfc27eef167e6
+  WINDOWS_SMOKE_DRIVER: chrome-swiftshader
+jobs:
+  upstream:
+    if: github.repository == 'FoleyFoli/Aurora-Viewer'
+    runs-on: windows-latest
+    timeout-minutes: 140
+    steps:
+      - name: Check out the exact upstream product source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: Aurora-Viewer/Aurora-Viewer
+          ref: ${{ env.SOURCE_COMMIT }}
+          path: source
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Check out the same smoke script as the candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 9fcbed16438b399182cbe6b2e673cd5df13064e6
+          sparse-checkout: .github/qa
+          path: validation
+          persist-credentials: false
+      - name: Verify the source and build the same locked development profile
+        working-directory: source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD) -cne $env:SOURCE_COMMIT -or (git rev-parse 'HEAD^{tree}') -cne $env:SOURCE_TREE) { throw 'Wrong upstream checkout' }
+          if ((git status --porcelain --untracked-files=all)) { throw 'Upstream checkout is dirty' }
+          New-Item -ItemType Directory -Path ../evidence/windows-smoke -Force | Out-Null
+          git show -s --format='commit=%H%ntree=%T%nparents=%P%nsubject=%s' HEAD > ../evidence/windows-smoke/source.txt
+          "runner=$env:ImageOS image=$env:ImageVersion architecture=$env:RUNNER_ARCH" >> ../evidence/windows-smoke/source.txt
+          rustc --version >> ../evidence/windows-smoke/source.txt
+          cargo --version >> ../evidence/windows-smoke/source.txt
+          cargo build --locked -p aurora-viewer 2>&1 | Tee-Object ../evidence/windows-smoke/dev-build.log
+          if ($LASTEXITCODE -ne 0) { throw "Upstream build failed ($LASTEXITCODE)" }
+          if ((git status --porcelain --untracked-files=all)) { throw 'Build changed the checkout' }
+      - name: Stage the executable and assets with the upstream packaging script
+        working-directory: source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $name = "Aurora-Viewer-rendering-test-$env:SOURCE_COMMIT"
+          $stage = Join-Path $env:RUNNER_TEMP $name
+          $exe = (Resolve-Path 'target/debug/aurora-viewer.exe').Path
+          & ./scripts/package.ps1 -Exe $exe -Out $stage -Source (Get-Location).Path
+          if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw 'Upstream packaging failed' }
+          Get-ChildItem -LiteralPath (Split-Path $exe) -Filter '*.dll' -File | Copy-Item -Destination $stage
+          $builtHash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          $packedHash = (Get-FileHash -LiteralPath (Join-Path $stage 'aurora-viewer.exe') -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($packedHash -cne $builtHash) { throw 'Packaged executable differs from built executable' }
+          $manifest = [ordered]@{
+              source_repository = 'Aurora-Viewer/Aurora-Viewer'
+              source_commit = $env:SOURCE_COMMIT; source_tree = $env:SOURCE_TREE
+              workflow_commit = $env:GITHUB_SHA
+              workflow_run = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+              build_command = 'cargo build --locked -p aurora-viewer'
+              executable = @{ path = 'aurora-viewer.exe'; sha256 = $builtHash }
+          }
+          $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $stage 'build-manifest.json') -Encoding utf8NoBOM
+          New-Item -ItemType Directory -Path ../test-client | Out-Null
+          $zip = Join-Path $env:GITHUB_WORKSPACE "test-client/$name.zip"
+          Compress-Archive -LiteralPath $stage -DestinationPath $zip -CompressionLevel Optimal
+          $archiveHash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$archiveHash  $name.zip" | Set-Content -LiteralPath "$zip.sha256" -Encoding utf8NoBOM
+      - name: Keep the exact upstream client for matched driver comparisons
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: upstream-windows-dev-${{ env.SOURCE_COMMIT }}
+          path: test-client/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Run the same SwiftShader slope scene through frame 650
+        id: smoke
+        shell: pwsh
+        run: ./validation/.github/qa/final-windows-software.ps1
+      - name: Compare the installed driver with the candidate's driver
+        if: always() && !cancelled() && steps.smoke.outcome != 'skipped'
+        shell: pwsh
+        run: |
+          $result = Get-Content -LiteralPath evidence/windows-smoke/result.json -Raw | ConvertFrom-Json
+          $filter = @{ LogName = 'Application'; Id = 1000, 1001; StartTime = (Get-Date).AddMinutes(-30) }
+          Get-WinEvent -FilterHashtable $filter -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match '(?i)aurora-viewer\.exe' } |
+              Select-Object TimeCreated, Id, ProviderName, Message |
+              Out-File -LiteralPath evidence/windows-smoke/windows-errors.txt -Encoding utf8
+          $observed = $result.software_driver.sha256
+          "Candidate driver: $env:DRIVER_SHA256 / upstream driver: $observed" >> $env:GITHUB_STEP_SUMMARY
+          if ($observed -cne $env:DRIVER_SHA256) { throw 'Driver differs from the candidate run; inspect evidence before comparing' }
+      - name: Upload upstream runtime evidence
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: upstream-windows-swiftshader-${{ env.SOURCE_COMMIT }}
+          path: evidence/windows-smoke/
+          if-no-files-found: error
+          retention-days: 14
