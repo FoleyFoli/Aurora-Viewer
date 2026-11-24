@@ -10,6 +10,7 @@ $buildWorkflowCommit = if ($env:BUILD_WORKFLOW_COMMIT) { $env:BUILD_WORKFLOW_COM
 $buildRunId = if ($env:BUILD_RUN_ID) { $env:BUILD_RUN_ID } else { $env:GITHUB_RUN_ID }
 $result = [ordered]@{
     status = 'failed'
+    diagnostic_mode = $env:DIAGNOSTIC_MODE
     requested_driver = 'Chrome SwiftShader (software Vulkan)'
     source_commit = $env:SOURCE_COMMIT
     source_tree = $env:SOURCE_TREE
@@ -89,6 +90,12 @@ try {
     $env:AURORA_CAPTURE = $frame
     $env:AURORA_CAPTURE_FRAMES = '650'
     $env:AURORA_CAPTURE_EXIT = '1'
+    switch ($env:DIAGNOSTIC_MODE) {
+        'ordinary' { }
+        'shadows-off' { $env:AURORA_SHADOWS = '0' }
+        'wgpu-validation' { $env:AURORA_GPU_VALIDATION = '1' }
+        default { throw "Unknown diagnostic mode: $env:DIAGNOSTIC_MODE" }
+    }
     $env:RUST_LOG = 'info'
     $proc = Start-Process -FilePath $exe -ArgumentList '--title','Test-Windows-Shading','--language','en' -WorkingDirectory $install -PassThru -RedirectStandardOutput (Join-Path $output 'stdout.txt') -RedirectStandardError (Join-Path $output 'stderr.txt')
     $result.process_started = $true
@@ -123,7 +130,10 @@ try {
         $runtimeLog -notmatch '(?s)interface: UI rendering feature off\b.*?frame 650 captured to ') {
         throw 'Viewer did not record the requested fixture and world-only frame'
     }
-    $messages = $runtimeLog + [IO.File]::ReadAllText((Join-Path $output 'stderr.txt')) + [IO.File]::ReadAllText((Join-Path $output 'stdout.txt'))
+    # Crash helpers can briefly retain the redirected files after the viewer exits.
+    # The authoritative viewer log and PNG are checked now; the workflow
+    # independently scans the uploaded stdout/stderr once the helpers close.
+    $messages = $runtimeLog
     if ($messages -match 'wgpu error:|validation error|GPU device lost|panicked at') { throw "GPU or viewer error: $($Matches[0])" }
     Add-Type -AssemblyName System.Drawing
     $image = [Drawing.Bitmap]::new($frame)
