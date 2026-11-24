@@ -105,7 +105,7 @@ try {
             for ($x = [int]($image.Width * 0.2); $x -lt $image.Width * 0.8; $x += 4) {
                 $c = $image.GetPixel($x, $y)
                 if ([Math]::Max($c.R,[Math]::Max($c.G,$c.B)) -gt 8) { $light++ }
-                $bin = (($c.R -shr 4) -shl 8) -bor (($c.G -shr 4) -shl 4) -bor ($c.B -shr 4)
+                $bin = (([int]$c.R -shr 4) -shl 8) -bor (([int]$c.G -shr 4) -shl 4) -bor ([int]$c.B -shr 4)
                 [void]$colors.Add($bin)
                 $count++
             }
