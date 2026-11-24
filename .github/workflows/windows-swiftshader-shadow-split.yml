@@ -1,0 +1,141 @@
+name: Isolate Windows SwiftShader directional sampling
+on:
+  push:
+    branches: [validation/windows-swiftshader-shadow-split]
+permissions:
+  contents: read
+  actions: read
+env:
+  DRIVER_SHA256: 2db1610d1c7ce82c7a5d86cf9cfaff4d2e3d6fe7a38fb784b81cfc27eef167e6
+  WINDOWS_SMOKE_DRIVER: chrome-swiftshader
+jobs:
+  compare:
+    if: github.repository == 'FoleyFoli/Aurora-Viewer'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - side: combined
+            source: a9ba60f9c985eba6f80df68fcf40212c14cae2d2
+            tree: d8588e7fc57af407be6c340cf9ad52b5a15ed220
+            package_prefix: Aurora-Viewer-rendering-test
+            build_run: '45359333007'
+            build_sha: 76f2f7667b686306bda40e730e6861d8dcb35d12
+            mode: shader-override
+            repository: FoleyFoli/Aurora-Viewer
+          - side: mapped-bypass
+            source: a9ba60f9c985eba6f80df68fcf40212c14cae2d2
+            tree: d8588e7fc57af407be6c340cf9ad52b5a15ed220
+            package_prefix: Aurora-Viewer-rendering-test
+            build_run: '45359333007'
+            build_sha: 76f2f7667b686306bda40e730e6861d8dcb35d12
+            mode: shader-override
+            repository: FoleyFoli/Aurora-Viewer
+          - side: paired-hard
+            source: a9ba60f9c985eba6f80df68fcf40212c14cae2d2
+            tree: d8588e7fc57af407be6c340cf9ad52b5a15ed220
+            package_prefix: Aurora-Viewer-rendering-test
+            build_run: '45359333007'
+            build_sha: 76f2f7667b686306bda40e730e6861d8dcb35d12
+            mode: shader-override
+            repository: FoleyFoli/Aurora-Viewer
+    env:
+      DIAGNOSTIC_MODE: ${{ matrix.mode }}
+      SOURCE_COMMIT: ${{ matrix.source }}
+      SOURCE_TREE: ${{ matrix.tree }}
+      BUILD_RUN_ID: ${{ matrix.build_run }}
+      BUILD_WORKFLOW_COMMIT: ${{ matrix.build_sha }}
+      ARTIFACT_NAME: ${{ matrix.package_prefix }}-${{ matrix.source }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          sparse-checkout: .github/qa
+          persist-credentials: false
+      - name: Check out exact shaders at the archived build's source location
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.source }}
+          path: source
+          sparse-checkout: crates/aurora-render/src/shaders
+          persist-credentials: false
+      - name: Verify and stage the selected source override
+        shell: bash
+        working-directory: source
+        env:
+          CASE: ${{ matrix.side }}
+        run: |
+          set -euo pipefail
+          set -x
+          mkdir -p ../evidence/windows-smoke
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
+          git config core.autocrlf false
+          path=crates/aurora-render/src/shaders
+          while IFS= read -r -d '' f; do
+            git cat-file blob "HEAD:$f" > "$f"
+            test "$(git hash-object --no-filters "$f")" = "$(git rev-parse "HEAD:$f")"
+          done < <(git ls-files -z -- "$path")
+          set +x
+          git -C .. cat-file blob "HEAD:.github/qa/$CASE.patch" > "$RUNNER_TEMP/shader-candidate.patch"
+          git apply --check "$RUNNER_TEMP/shader-candidate.patch"
+          git apply "$RUNNER_TEMP/shader-candidate.patch"
+          case "$CASE" in
+            combined)
+              echo 'ad717953cff8f2aa0ea83fbd12f32942c7f905aa95833958e132a7bfd834b5c0  crates/aurora-render/src/shaders/common.wgsl' | sha256sum -c
+              echo '2a5d8f1bcb49a04f9a1070865a2c7a391a4a9fb53dcd6d8fdf97101d1f7642a6  crates/aurora-render/src/shaders/object.wgsl' | sha256sum -c
+              ;;
+            mapped-bypass)
+              echo '4bc94b8f0ddd9ae25299c0c90aeadb33ceb3ff79d317b7c952f3c3b6fc404fe4  crates/aurora-render/src/shaders/common.wgsl' | sha256sum -c
+              ;;
+            paired-hard)
+              echo '657ae5fc3a6ba1e951fd8309241cf6799898331cb82aa4721cc7821225760e3d  crates/aurora-render/src/shaders/common.wgsl' | sha256sum -c
+              ;;
+          esac
+          mkdir -p ../evidence/windows-smoke
+          sha256sum "$path"/*.wgsl > ../evidence/windows-smoke/shaders.sha256
+      - name: Locate the exact client archive and record its GitHub digest
+        id: archive
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/windows-smoke
+          run="repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID"
+          gh api "$run" --jq '.head_sha' | grep -Fxq "$BUILD_WORKFLOW_COMMIT"
+          gh api "$run/artifacts" | jq -e --arg name "$ARTIFACT_NAME" --arg sha "$BUILD_WORKFLOW_COMMIT" --argjson run "$BUILD_RUN_ID" '
+             [.artifacts[] | select(.name == $name and .expired == false and
+               .workflow_run.id == $run and .workflow_run.head_sha == $sha and (.digest | test("^sha256:[a-f0-9]{64}$")))] |
+             if length == 1 then .[0] | {id,name,digest,workflow_run} else error("Archive identity mismatch") end' > evidence/windows-smoke/source-artifact.json
+          echo "id=$(jq -r '.id' evidence/windows-smoke/source-artifact.json)" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BUILD_RUN_ID }}
+          artifact-ids: ${{ steps.archive.outputs.id }}
+          merge-multiple: true
+          path: test-client
+      - name: Run the offline SwiftShader demo with the named test setting
+        id: smoke
+        shell: pwsh
+        run: ./.github/qa/final-windows-software.ps1
+      - name: Collect viewer and Windows crash records from this launch
+        if: always() && !cancelled() && steps.smoke.outcome != 'skipped'
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP "aurora-windows-smoke-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          ./.github/qa/collect-aurora-crash.ps1 -ViewerRoot $root -SmokeOutput 'evidence/windows-smoke'
+          $result = Get-Content -LiteralPath evidence/windows-smoke/result.json -Raw | ConvertFrom-Json
+          $log = Get-Content -LiteralPath evidence/windows-smoke/viewer.log -Raw
+          if (!$result.shader_source -or $log -match 'using baked source|offline water shader') { throw 'Source override missing or fell back to baked shaders' }
+          if ($result.software_driver.sha256 -cne $env:DRIVER_SHA256) { throw 'Different software driver; see result.json' }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always() && !cancelled()
+        with:
+          name: windows-swiftshader-shader-${{ matrix.side }}-${{ matrix.source }}
+          path: evidence/windows-smoke/
+          if-no-files-found: error
+          retention-days: 14

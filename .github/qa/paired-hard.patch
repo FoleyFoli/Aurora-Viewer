@@ -1,0 +1,65 @@
+--- a/crates/aurora-render/src/shaders/common.wgsl
++++ b/crates/aurora-render/src/shaders/common.wgsl
+@@ -1849,61 +1849,7 @@
+     let ref_z = remote.ref_z - far_bias - abs(remote.slope.x) - abs(remote.slope.y);
+     // A hard photo override may keep the layered atlas. Sample its bilinear
+     // edge even where the nearest texel is lit, without searching for blockers.
+-    var radius = 0.0;
+-    if (tangent > 0.0) {
+-        let radius_scale = tangent / (2.0 * far_texel * depth_per_metre);
+-        let max_radius = min(0.5 * PCSS_MAX_TEXELS, PCSS_MAX_METRES / (2.0 * far_texel));
+-        let central = distant_central_blocker(remote, far_bias);
+-        var blockers = central;
+-        // Interior and perimeter probes cover both the middle and edge of a large blocker.
+-        // A narrow silhouette at a distance may lie between the probes.
+-        for (var ring = 0u; ring < 2u; ring++) {
+-            let radius = max_radius * select(0.45, 1.0, ring == 1u);
+-            let rotation = select(vec2<f32>(0.92388, 0.382683), vec2<f32>(1.0, 0.0), ring == 1u);
+-            for (var i = 0u; i < 8u; i++) {
+-                let probe = remote.position + pcss_rotate(PCSS_OCTAGON[i], rotation) * radius;
+-                blockers += distant_blocker(remote, probe, far_bias);
+-            }
+-        }
+-        if (blockers.y <= 0.0) { return local_visibility; }
+-        let mean_gap = blockers.x / blockers.y;
+-        var gap = mean_gap;
+-        // On an inclined continuous sheet the wider search reaches blockers far
+-        // above this receiver's own intersection. Use the observed central gap
+-        // unless it is much shallower than the distant population (a separate caster).
+-        if (central.y > 0.0) {
+-            let central_gap = central.x / central.y;
+-            let weight = central.y * smoothstep(0.18, 0.38, central_gap / mean_gap);
+-            gap = mix(mean_gap, central_gap, weight);
+-        }
+-        radius = min(max_radius, gap * radius_scale);
+-    }
+-    if (radius <= 0.001) {
+-        return min(local_visibility, distant_visibility(remote, remote.position, ref_z, 0.0));
+-    }
+-    let local_ref = receiver_z - bias - abs(slope.x) - abs(slope.y);
+-    let local = LocalShadow(origin + uv * size, 1.0 / vec2<f32>(textureDimensions(local_map)), local_ref,
+-        slope, soft.z, soft.y, local_visibility);
+-    var sum = 0.0;
+-    var weight = 0.0;
+-    for (var ring = 0u; ring < 3u; ring++) {
+-        var rotation = vec2<f32>(1.0, 0.0);
+-        var w = 1.0;
+-        if (ring == 1u) {
+-            w = smoothstep(5.0, 12.0, 2.0 * radius);
+-            rotation = vec2<f32>(0.5, 0.8660254);
+-        }
+-        if (ring == 2u) {
+-            w = smoothstep(16.0, 32.0, 2.0 * radius);
+-            rotation = vec2<f32>(0.5, -0.8660254);
+-        }
+-        if (w <= 0.0) { break; }
+-        sum += w * paired_disk(local_map, local, remote, ref_z, radius, rotation);
+-        weight += w;
+-    }
+-    // Both this integral and the independent local estimate sample a finite
+-    // set of directions. Adding a distant blocker cannot reveal a local one.
+-    return min(local_visibility, sum / weight);
++    return min(local_visibility, distant_visibility(remote, remote.position, ref_z, 0.0));
+ }
+ 
+ fn pcss_compose(local_map: texture_depth_2d, local_visibility: f32, soft: vec3<f32>,
