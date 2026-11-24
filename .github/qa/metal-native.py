@@ -11,10 +11,12 @@ import tempfile
 import time
 from pathlib import Path
 
+from metal_families import HASHES, family_override
+
 TEMP = Path(sys.argv[1]).resolve()
 OUT = Path(sys.argv[2]).resolve()
 MODE = sys.argv[3]
-if MODE not in {"ordinary", "metal-api-only", "wgpu-only", "validation-both", "shadow-source-control", "shadow-graph-bypass", "occlusion-off", "dof-off"}:
+if MODE not in {"ordinary", "metal-api-only", "wgpu-only", "validation-both", "shadow-source-control", "shadow-graph-bypass", "occlusion-off", "dof-off", "pacing-always", *HASHES}:
     raise ValueError(f"Unknown validation mode: {MODE}")
 SOURCE = Path.cwd() / "crates/aurora-render/src/shaders"
 OUT.mkdir(exist_ok=True)
@@ -70,6 +72,8 @@ def run_viewer(side, name, override=None):
             RUST_BACKTRACE="1",
             RUST_LOG="info",
         )
+        if MODE == "pacing-always":
+            env["AURORA_FRAME_PACING"] = "always"
         if MODE == "dof-off":
             del env["AURORA_DEMO_DOF"]
         if MODE in {"metal-api-only", "validation-both"}:
@@ -84,7 +88,11 @@ def run_viewer(side, name, override=None):
                 raise RuntimeError("Archived executable does not contain the expected shader source directory")
             if MODE == "shadow-graph-bypass":
                 shutil.copy2(override, SOURCE / "common.wgsl")
+            if MODE in HASHES:
+                common = SOURCE / "common.wgsl"
+                common.write_text(family_override(common.read_text(), MODE))
             expected = {
+                **HASHES,
                 "shadow-graph-bypass": "10914b6531b5473a0c793421f2e61fd4ee3c75f4ee52281567d56c76e87ecf3b",
                 "shadow-source-control": "33a3070f6e044399697172750afb19625dcfe0637cb301fcabc09c22d7517667",
             }[MODE]
@@ -129,7 +137,7 @@ def run_viewer(side, name, override=None):
 override_path = None
 if MODE == "shadow-graph-bypass":
     override_path = Path.cwd() / ".github/qa/common-directional-graph-bypass.wgsl"
-elif MODE == "shadow-source-control":
+elif MODE == "shadow-source-control" or MODE in HASHES:
     override_path = SOURCE / "common.wgsl"
 results = [run_viewer("after", "candidate", override_path), run_viewer("before", "upstream")]
 
