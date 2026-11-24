@@ -79,6 +79,20 @@
           "zip_sha256": "aea6b3ad4f34692e8753afae9fc62eb10317272ea11fd36d70cb74d01b3ba6eb"
         }
       }
+    },
+    {
+      "run": 45373467467,
+      "run_attempt": 2,
+      "job_id": 138402635736,
+      "workflow_commit": "4781388b5c1e2636b52af91d2849ee02a1773142",
+      "runner_label": "macos-15",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "assigned_runner": "",
+      "started_steps": 0,
+      "started": "2026-11-24T11:11:21Z",
+      "ended": "2026-11-24T11:26:22Z",
+      "job_url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45373467467/job/138402635736"
     }
   ],
   "earlier_native_capture": {
@@ -111,7 +125,7 @@
         "quantized_rgb_bins": 186,
         "native_gpu_error_lines": 0,
         "driver_timeouts": 0,
-        "hair_camera_at_frame_641": "demo camera f641: ThirdPerson, pos Vec3(132.10, 128.55, 33.86), target Vec3(132.88, 128.94, 33.47), fov 60.0\u00b0, on avatar false, orbit 0.00, pitch 0.00, zoom 1.00, animating false (mouse None, agent yaw 0.46, right orbit=false, menu=false, down=false, cursor held=false, alt free=false, typing=false)"
+        "hair_camera_at_frame_641": "demo camera f641: ThirdPerson, pos Vec3(132.10, 128.55, 33.86), target Vec3(132.88, 128.94, 33.47), fov 60.0°, on avatar false, orbit 0.00, pitch 0.00, zoom 1.00, animating false (mouse None, agent yaw 0.46, right orbit=false, menu=false, down=false, cursor held=false, alt free=false, typing=false)"
       },
       "shadow-slope": {
         "viewer_exit": 0,
@@ -134,7 +148,7 @@
   },
   "final_source_capture": {
     "status": "No frame on the exact final revision",
-    "explanation": "The ARM runner could not acquire hosting capacity. The Intel build and a native Metal readback passed, but the device refused Aurora\u2019s required texture descriptor indexing at startup in every fixture. All three viewers exited before any draw or image write.",
+    "explanation": "Both exact-commit ARM jobs ended before runner assignment. GitHub reported hosting capacity constraints on the first attempt. The Intel build and a native Metal readback passed, but all three viewer scenes stopped before drawing because the Intel adapter lacks Aurora’s required texture binding arrays.",
     "native_executable_verified": true,
     "native_executable_sha256": "95d1a8e529312cd169b69915459a5088d6caa229ee081681242ff0f3f8cf13a8",
     "native_source_verified": {

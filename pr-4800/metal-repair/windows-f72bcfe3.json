@@ -173,7 +173,117 @@
   },
   "coverage": "The final Windows runs used software Vulkan. The previous human review covered the Windows client at 57d978f7.",
   "matched_three_cascade_comparison": {
-    "run_url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45380458726",
-    "status": "in progress"
+    "status": "passed",
+    "run_url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45380458726/job/138397826217",
+    "archive_url": "https://github.com/FoleyFoli/Aurora-Viewer/actions/runs/45380458726/artifacts/14915517025",
+    "archive_sha256": "sha256:8b6fbba559a2aa215f4311d1ac29427994f4b24f245a8bc4d836ec1256ee2760",
+    "comparison": "The same packaged viewer and 35-degree receiver, using the native three-cascade 2048-pixel atlas, 144-meter shadow distance and contact hardening on both Windows drivers. Classification used the same shadow-disabled reference and pre-existing receiver and thresholds as the four-level comparison.",
+    "native_mesa": {
+      "status": "passed",
+      "requested_driver": "MSYS2 Mesa lavapipe (software Vulkan)",
+      "source_commit": "f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0",
+      "source_tree": "623f4f191845e083e87b80d912b55b5e9018c7e4",
+      "build_workflow_commit": "4781388b5c1e2636b52af91d2849ee02a1773142",
+      "build_run_id": "45373467467",
+      "workflow_commit": "1c5328e8e8f0c93c2e01f0507f0658d6b0a176cb",
+      "workflow_run": "45380458726",
+      "process_started": true,
+      "adapter": "llvmpipe (LLVM 23.1.5, 256 bits) (Vulkan, driver llvmpipe Mesa 26.3.1 (LLVM 23.1.5), memory 16378 MB dedicated)",
+      "zip_sha256": "436200bd84b55d0361c5edb76c65aab4dd8dbfc90316bc07f7858b496ba2b5a3",
+      "exe_sha256": "164ee9d04fe74f392f64fe80b757fc778372f0f6036ee7f97bc9dd85ceab5ead",
+      "software_driver": {
+        "dll_sha256": "ca4814fc85a75179af05ad00092e4b09c583e8fede67f1c0391e366019972f3b",
+        "manifest": "D:\\a\\_temp\\msys64\\ucrt64\\share\\vulkan\\icd.d\\lvp_icd.x86_64.json",
+        "loader_sha256": "31862137c4179dcdbba782760f3e401f9fb526477947079d7f63987864f9b0eb",
+        "discovery": "temporary runner registration",
+        "driver": "D:\\a\\_temp\\msys64\\ucrt64\\bin\\vulkan_lvp.dll"
+      },
+      "pid": 9208,
+      "exit_code": 0,
+      "adapter_candidates": [
+        "GPU adapter 0: llvmpipe (LLVM 23.1.5, 256 bits) (software, 16378 MB dedicated, can present)"
+      ],
+      "pixels": {
+        "rgb_444_bins": 279,
+        "width": 800,
+        "height": 560,
+        "samples": 10080,
+        "visual_nonuniform": true,
+        "nonblack": 10080
+      },
+      "layout": {
+        "quality": 3,
+        "graded": false,
+        "map": 2048,
+        "contact_hardening": true,
+        "distance": 144
+      },
+      "captures": [
+        {
+          "request_frame": 60,
+          "file": "world-60.png",
+          "present": true,
+          "sha256": "36e05d23238502825991ccb6f0105f10219df3849eb1e37d3046a6066fa699f7",
+          "pixels": {
+            "rgb_444_bins": 292,
+            "width": 800,
+            "height": 560,
+            "samples": 10080,
+            "visual_nonuniform": true,
+            "nonblack": 10080
+          },
+          "logged": true,
+          "ui_off_logged": true,
+          "world_only": false
+        },
+        {
+          "request_frame": 605,
+          "file": "world-605.png",
+          "present": true,
+          "sha256": "7d19a8b7871cf72b382e9c8dd81e3f847be2f5cfae83e57556c25db4a6927afc",
+          "pixels": {
+            "rgb_444_bins": 276,
+            "width": 800,
+            "height": 560,
+            "samples": 10080,
+            "visual_nonuniform": true,
+            "nonblack": 10080
+          },
+          "logged": true,
+          "ui_off_logged": true,
+          "world_only": true
+        },
+        {
+          "request_frame": 650,
+          "file": "world-650.png",
+          "present": true,
+          "sha256": "0f42383cb5fa8f3759f57a01fcc1012e750b484df390cc55747d7937a75583e4",
+          "pixels": {
+            "rgb_444_bins": 279,
+            "width": 800,
+            "height": 560,
+            "samples": 10080,
+            "visual_nonuniform": true,
+            "nonblack": 10080
+          },
+          "logged": true,
+          "ui_off_logged": true,
+          "world_only": true
+        }
+      ]
+    },
+    "swiftshader_against_matched_mesa": {
+      "visible_shadow_reference": "0f42383cb5fa8f3759f57a01fcc1012e750b484df390cc55747d7937a75583e4",
+      "disabled_shadow_reference": "aaa8014d884bf569cea537d0adbea8942b4c2e56f7e070f28209957fd341d74a",
+      "capture_sha256": "7f7735c1112d17571ac19138b5f30181aa9253ae7df6b234d10d25874ed4fa91",
+      "core_pixels": 2436,
+      "core_retained": 2436,
+      "core_reference_darkening": 22.45470717022452,
+      "core_measured_darkening": 22.477148330596645,
+      "adjacent_lit_pixels": 6500,
+      "adjacent_lit_retained": 6500
+    },
+    "core_retention_percent": 100,
+    "lit_retention_percent": 100
   }
 }
