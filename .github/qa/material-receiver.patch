@@ -1,0 +1,187 @@
+diff --git a/crates/aurora-render/src/shaders/common.wgsl b/crates/aurora-render/src/shaders/common.wgsl
+index cbb17f1ea..357066aea 100644
+--- a/crates/aurora-render/src/shaders/common.wgsl
++++ b/crates/aurora-render/src/shaders/common.wgsl
+@@ -2662,18 +2662,31 @@ fn combine_sun_visibility(map_visibility: f32, contact_visibility: f32) -> f32 {
+     return min(map_visibility, contact_visibility);
+ }
+ 
+-// Evaluate each receiver's directional maps once. A traced receiver needs
+-// its fallback maps only when a map diagnostic actually displays them.
+-fn surface_shadow(world_pos: vec3<f32>, n: vec3<f32>, vertex_depth: f32, frag: vec2<f32>) -> SurfaceShadow {
++// Traced receivers normally take the screen-space mask. A map diagnostic can
++// still request their geometric map, including the independent cascade tint.
++fn traced_surface_shadow() -> bool {
++    return frame.contact.z > 0.5 && contact_share > 0.0 && !in_reflection_pass();
++}
++
++fn surface_needs_shadow_map(traced: bool) -> bool {
+     let mode = frame.render_controls.x;
+-    let enabled = frame.params.z >= 0.5;
+-    let traced = frame.contact.z > 0.5 && contact_share > 0.0 && !in_reflection_pass();
+     let show_graded = mode == RC_MODE_CASCADES && frame.detail_params.x > 0.0;
+-    var shadow = UNSHADOWED;
+-    if ((enabled && (!traced || mode == RC_MODE_SHADOW_MAP_VISIBILITY)) || show_graded) {
+-        shadow.map = mapped_shadow(world_pos, n, vertex_depth);
++    return (frame.params.z >= 0.5 && (!traced || mode == RC_MODE_SHADOW_MAP_VISIBILITY)) || show_graded;
++}
++
++fn surface_shadow(world_pos: vec3<f32>, n: vec3<f32>, vertex_depth: f32, frag: vec2<f32>) -> SurfaceShadow {
++    let traced = traced_surface_shadow();
++    var mapped = UNSHADOWED.map;
++    if (surface_needs_shadow_map(traced)) {
++        mapped = mapped_shadow(world_pos, n, vertex_depth);
+     }
+-    if (enabled) {
++    return resolve_surface_shadow(mapped, traced, frag);
++}
++
++fn resolve_surface_shadow(mapped: vec4<f32>, traced: bool, frag: vec2<f32>) -> SurfaceShadow {
++    var shadow = UNSHADOWED;
++    shadow.map = mapped;
++    if (frame.params.z >= 0.5) {
+         let contact = contact_shadow(frag);
+         if (traced) {
+             let p = vec2<i32>(frag);
+@@ -4196,8 +4209,7 @@ fn water_caustic_combine(a:vec3<f32>,b:f32)->vec3<f32> {
+     return mix(a,min(a,vec3<f32>(b))*1.5,0.7);
+ }
+ // The light the water focuses on a submerged point, before the sun's shadow.
+-// A surface that already looked its shadow up multiplies by it (the terrain);
+-// water_caustics looks it up for the others.
++// Each receiver multiplies this by its own shadow visibility.
+ // The map is one 16 m tile of a few sine waves (water_micro): stamped as it
+ // is, its interference reads as a grid. It is read twice, the second time
+ // turned and larger (WATER_CAUSTIC_TURN), through a slow warp of the
+@@ -4232,14 +4244,6 @@ fn water_caustic_light(pos:vec3<f32>,normal:vec3<f32>)->vec3<f32> {
+     let extinction=exp(-depth*(0.13+frame.water_fog.w*0.025));
+     return frame.sun_color.rgb*energy*extinction*max(dot(normal,light),0.0)*frame.sun_dir.w*smoothstep(0.03,0.3,depth);
+ }
+-fn water_caustics(pos:vec3<f32>,normal:vec3<f32>)->vec3<f32> {
+-    let focused=water_caustic_light(pos,normal);
+-    // no focused light here, or a face turned away from the sun: nothing for
+-    // the shadow to dim, it is not looked up
+-    if(max(focused.r,max(focused.g,focused.b))<=0.0){return vec3<f32>(0.0);}
+-    return focused*shadow_lift(shadow_factor(pos,normal,distance(pos,frame.camera_pos.xyz)));
+-}
+-
+ fn water_fx_noise(p: vec2<f32>) -> f32 {
+     let i=floor(p);let f=fract(p);let w=f*f*(3.0-2.0*f);
+     return mix(mix(water_fx_hash(i).x,water_fx_hash(i+vec2<f32>(1.0,0.0)).x,w.x),
+diff --git a/crates/aurora-render/src/shaders/object.wgsl b/crates/aurora-render/src/shaders/object.wgsl
+index 17b2bf7a9..9546c05bb 100644
+--- a/crates/aurora-render/src/shaders/object.wgsl
++++ b/crates/aurora-render/src/shaders/object.wgsl
+@@ -1673,19 +1673,42 @@ fn pbr_thin_matches(rec: DrawRecord) -> bool {
+             (FLAG_ALPHA_MASK | FLAG_DOUBLE_SIDED);
+ }
+ 
+-// Very modest wrapped-backlight approximation for leaf-thin material. Shadow
+-// visibility remains in force: no light is added through solid occluders.
+-fn pbr_thin_backlight(base: vec3<f32>, geo_n: vec3<f32>, world_pos: vec3<f32>,
+-                     view_depth: f32, sun_rgb: vec3<f32>) -> vec3<f32> {
+-    let away = max(dot(-normalize(geo_n), normalize(frame.sun_dir.xyz)), 0.0);
+-    let response = smoothstep(0.0, 0.85, away);
+-    if (response <= 0.0 || frame.pbr_thin_gain.y <= 0.0) { return vec3<f32>(0.0); }
+-    // Trace from the sun-facing side rather than the backface normal, which
+-    // would bias the shadow lookup away from the light and self-shadow leaves.
+-    // Use the cascade, not the camera-space contact mask, for transmitted light.
+-    let visibility = shadow_lift(shadow_factor(world_pos, normalize(frame.sun_dir.xyz), view_depth));
+-    return base * sun_rgb * sun_glass * visibility * response *
+-        (0.35 * frame.pbr_thin_gain.y);
++struct MaterialShadowMaps {
++    surface: vec4<f32>,
++    caustic: f32,
++    transmission: f32,
++};
++
++// Ordinary shading, caustics and transmission need different virtual
++// receivers. Keep the normal and depth of each, but use one copy of the
++// directional filter in the compiled object fragment program.
++fn material_shadow_maps(in: VsOut, m: Material, surface: bool, caustic: bool, transmission: bool) -> MaterialShadowMaps {
++    var maps = MaterialShadowMaps(UNSHADOWED.map, 1.0, 1.0);
++    let enabled = frame.params.z >= 0.5;
++    let count = select(select(u32(surface), 2u, enabled && caustic), 3u, enabled && transmission);
++    for (var i = 0u; i < count; i++) {
++        var normal = m.n;
++        var depth = in.view_depth;
++        if (i == 0u) {
++            if (!surface) { continue; }
++            normal = shadow_normal(m);
++        } else if (i == 1u) {
++            if (!caustic) { continue; }
++            depth = distance(in.world_pos, frame.camera_pos.xyz);
++        } else {
++            // The transmission ray starts on the sun-facing side of the leaf.
++            normal = normalize(frame.sun_dir.xyz);
++        }
++        let mapped = mapped_shadow(in.world_pos, normal, depth);
++        if (i == 0u) {
++            maps.surface = mapped;
++        } else if (i == 1u) {
++            maps.caustic = shadow_lift(mapped.a);
++        } else {
++            maps.transmission = shadow_lift(mapped.a);
++        }
++    }
++    return maps;
+ }
+ 
+ fn shade_material(in: VsOut, m: Material) -> Shaded {
+@@ -1729,34 +1752,34 @@ fn shade_material(in: VsOut, m: Material) -> Shaded {
+         // traced surface is what the layer lies on
+         contact_glass = in_depth && share > 0.0;
+     }
+-    // Share this calculation across both lighting branches: duplicating its
+-    // wave/shadow code crashes Apple's Metal pipeline compiler.
++    let lit = (rec.flags.x & FLAG_FULLBRIGHT) == 0u;
++    let needs_surface = lit || displays_directional_shadow(frame.render_controls.x);
++    var focused = vec3<f32>(0.0);
++    if (lit) { focused = water_caustic_light(in.world_pos, m.n); }
++    let caustic = max(focused.r, max(focused.g, focused.b)) > 0.0;
++    var backlight = 0.0;
++    if (lit && pbr_thin_matches(rec) && frame.pbr_thin_gain.y > 0.0) {
++        let away = max(dot(-normalize(m.geo_n), normalize(frame.sun_dir.xyz)), 0.0);
++        backlight = smoothstep(0.0, 0.85, away);
++    }
++    let traced = traced_surface_shadow();
++    let maps = material_shadow_maps(in, m, needs_surface && surface_needs_shadow_map(traced), caustic, backlight > 0.0);
++    var shadow = UNSHADOWED;
++    if (needs_surface) { shadow = resolve_surface_shadow(maps.surface, traced, in.clip.xy); }
++    // softenLightF: scol = max(shadow, emissive)
++    let sh = max(shadow.lighting, m.unlit);
+     var caustic_light = vec3<f32>(0.0);
+-    if ((rec.flags.x & FLAG_FULLBRIGHT) == 0u) {
+-        caustic_light = m.color.rgb * (1.0-m.unlit) * water_caustics(in.world_pos,m.n);
+-    }
++    if (caustic) { caustic_light = m.color.rgb * (1.0 - m.unlit) * (focused * maps.caustic); }
+     var col: vec3<f32>;
+-    // the share of `col` from the local lights and the emissive, which the
+-    // depth under the water does not dim (water_scene_lit)
++    // The local lights and emissive are not dimmed by the water depth.
+     var own = m.emissive;
+     let classic = is_classic_sky();
+-    // Limit native shader expansion by sharing receiver visibility across
+-    // the sky models. Set the traced glass tint before thin backlighting.
+-    var shadow = UNSHADOWED;
+-    if ((rec.flags.x & FLAG_FULLBRIGHT) == 0u || displays_directional_shadow(frame.render_controls.x)) {
+-        shadow = surface_shadow(in.world_pos, shadow_normal(m), in.view_depth, in.clip.xy);
+-    }
+-    // softenLightF: scol = max(shadow, emissive)
+-    let sh = max(shadow.lighting, m.unlit);
+-    // Keep one transmission-shadow callsite across the sky models. The
+-    // classic branch uses its atmospheric sun colour at this surface.
++    // Resolve the surface's traced glass tint before the transmitted light.
+     var thin_backlight = vec3<f32>(0.0);
+-    if ((rec.flags.x & FLAG_FULLBRIGHT) == 0u && pbr_thin_matches(rec)) {
++    if (backlight > 0.0) {
+         var thin_sun = frame.sun_color.rgb;
+-        if (classic) {
+-            thin_sun = ll_sun_linear(ll_atmos(in.world_pos - frame.camera_pos.xyz));
+-        }
+-        thin_backlight = pbr_thin_backlight(m.color.rgb, m.geo_n, in.world_pos, in.view_depth, thin_sun);
++        if (classic) { thin_sun = ll_sun_linear(ll_atmos(in.world_pos - frame.camera_pos.xyz)); }
++        thin_backlight = m.color.rgb * thin_sun * sun_glass * maps.transmission * backlight * (0.35 * frame.pbr_thin_gain.y);
+     }
+     var hazed = false;
+     if ((rec.flags.x & FLAG_FULLBRIGHT) != 0u) {

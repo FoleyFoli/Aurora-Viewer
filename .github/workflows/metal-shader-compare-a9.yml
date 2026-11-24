@@ -1,0 +1,103 @@
+name: Compare directional shader candidates on ordinary Metal
+on:
+  push:
+    branches: [validation/metal-shader-compare-a9]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare:
+    if: github.repository == 'FoleyFoli/Aurora-Viewer'
+    runs-on: macos-15
+    timeout-minutes: 44
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [unchanged, cascade-traversal, material-receiver]
+    name: Ordinary Metal three-scene comparison (${{ matrix.mode }})
+    env:
+      MODE: ${{ matrix.mode }}
+      SIDE: ${{ matrix.mode }}
+      SOURCE_COMMIT: 75c022abdbaad690ab14975674ec900ace2c51fe
+      SOURCE_TREE: 4d449b0369533d5e5ea857b09da08b6040c2788e
+    steps:
+      - name: Check out the fork-only test harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          path: validation
+          sparse-checkout: .github/qa
+          persist-credentials: false
+      - name: Check out the shader sources at the baked executable's compilation directory
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: source
+          ref: ${{ env.SOURCE_COMMIT }}
+          sparse-checkout: crates/aurora-render/src/shaders
+          persist-credentials: false
+      - name: Download the exact repaired Metal test client
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: '45346318145'
+          artifact-ids: '14899182490'
+          merge-multiple: true
+          path: archived
+      - name: Verify the native binary and selected shader hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p native evidence
+          tar -xzf archived/native-client.tar.gz -C native
+          test "$(cat native/revision.txt)" = "$SOURCE_COMMIT"
+          (cd native && shasum -a 256 -c viewer.sha256)
+          test "$(shasum -a 256 native/aurora-viewer | awk '{print $1}')" = cc6d26e240879b5d50b4378a379e09c928e55fa51537bdfec3a3cff8e4eec353
+          test "$(git -C source rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test "$(git -C source rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+          if [[ "$MODE" != unchanged ]]; then
+            git -C source apply "$GITHUB_WORKSPACE/validation/.github/qa/$MODE.patch"
+          fi
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          from subprocess import check_output
+          mode = os.environ['MODE']
+          common = {'unchanged':'9ea14da6926e6669052eecab2b2e00f6064d8446078e4d2a368267ebbf2aac7b',
+                    'cascade-traversal':'3f17fe44b7d8a6c33782c918edc6efe55ddd2fd048bca64555c65c03f8f204bc',
+                    'material-receiver':'3f76d43c8582c582108725bfa7fec30f574b64ead0f54fb6382c497ea9988532'}[mode]
+          obj = '2a5d8f1bcb49a04f9a1070865a2c7a391a4a9fb53dcd6d8fdf97101d1f7642a6' if mode == 'material-receiver' else '8e0f68a92b36ff9e5b2ba9cfd1e34403ad116ba2061ffa458a3b5885a7c8fd05'
+          crate = Path(os.environ['GITHUB_WORKSPACE']) / 'source/crates/aurora-render'
+          assert str(crate).encode() in Path('native/aurora-viewer').read_bytes(), 'Baked lookup directory differs from the staged shader directory'
+          directory = crate / 'src/shaders'
+          hashes = {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in directory.glob('*.wgsl')}
+          assert (hashes['common.wgsl'],hashes['object.wgsl']) == (common,obj)
+          edited = check_output(['git','-C','source','diff','--name-only'],text=True).splitlines()
+          expected = {'unchanged':[], 'cascade-traversal':['common.wgsl'], 'material-receiver':['common.wgsl','object.wgsl']}
+          assert edited == ['crates/aurora-render/src/shaders/'+p for p in expected[mode]]
+          Path('evidence/provenance.json').write_text(json.dumps({'mode':mode,'source_commit':os.environ['SOURCE_COMMIT'],
+            'tree':os.environ['SOURCE_TREE'],'executable_sha256':Path('native/viewer.sha256').read_text().split()[0],
+            'binary_origin_run':45346318145,'binary_origin_artifact':14899182490,'workflow_commit':os.environ['GITHUB_SHA'],
+            'workflow_run':os.environ['GITHUB_RUN_ID'],'compiled_shader_directory':str(crate),'modified_paths':edited,'shader_sha256':hashes},indent=2)+'\n')
+          PY
+      - name: Capture three scenes with the same source-override routing for each comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          swiftc validation/.github/qa/final-metal-pixels.swift -o "$RUNNER_TEMP/final-metal-pixels"
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('validation/.github/qa/final-metal.py').read_text()
+          marker = '        "AURORA_DEMO": "1",'
+          assert text.count(marker) == 1 and text.count('"mode": "normal"') == 3
+          text = text.replace(marker, marker+'\n        "AURORA_DEMO_WATER_SHADERS": "1",')
+          Path('compare.py').write_text(text.replace('"mode": "normal"','"mode": "ordinary Metal with offline shader override"'))
+          PY
+          caffeinate -dimsu python3 compare.py native/aurora-viewer "$RUNNER_TEMP/final-metal-pixels" evidence
+      - name: Upload variant evidence
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-metal-compare-${{ matrix.mode }}-${{ env.SOURCE_COMMIT }}
+          path: evidence/
+          retention-days: 10
+          if-no-files-found: error
