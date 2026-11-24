@@ -76,15 +76,21 @@ jobs:
           CASE: ${{ matrix.side }}
         run: |
           set -euo pipefail
+          set -x
+          mkdir -p ../evidence/windows-smoke
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
           git config core.autocrlf false
           path=crates/aurora-render/src/shaders
-          for f in "$path"/*.wgsl; do git cat-file blob "HEAD:$f" > "$f"; done
-          test -z "$(git status --porcelain -- "$path")"
+          while IFS= read -r -d '' f; do
+            git cat-file blob "HEAD:$f" > "$f"
+            test "$(git hash-object --no-filters "$f")" = "$(git rev-parse "HEAD:$f")"
+          done < <(git ls-files -z -- "$path")
+          set +x
           if [[ "$CASE" = cascade-traversal || "$CASE" = material-receiver ]]; then
-            git apply --check "../.github/qa/$CASE.patch"
-            git apply "../.github/qa/$CASE.patch"
+            git -C .. cat-file blob "HEAD:.github/qa/$CASE.patch" > "$RUNNER_TEMP/shader-candidate.patch"
+            git apply --check "$RUNNER_TEMP/shader-candidate.patch"
+            git apply "$RUNNER_TEMP/shader-candidate.patch"
           fi
           if [[ "$CASE" = cascade-traversal ]]; then
             echo '3f17fe44b7d8a6c33782c918edc6efe55ddd2fd048bca64555c65c03f8f204bc  crates/aurora-render/src/shaders/common.wgsl' | sha256sum -c
