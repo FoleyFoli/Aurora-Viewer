@@ -1,0 +1,30 @@
+   Compiling migration-qa v0.0.0 (/workspace/scratch/20daa6692b53/migration-qa)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.35s
+     Running unittests src/main.rs (target/debug/build/migration-qa/10ad6f5544f761df/out/migration_qa-10ad6f5544f761df)
+
+running 22 tests
+test graphics_presets::tests::a_profile_on_the_deluxe_of_version_19_turns_the_experimental_effects_off ... ok
+test graphics_presets::tests::a_profile_on_the_former_deluxe_moves_to_gtao_and_no_other ... ok
+test graphics_presets::tests::a_profile_on_the_former_deluxe_moves_to_high_and_no_other ... ok
+test graphics_presets::tests::a_profile_on_the_deluxe_of_version_18_takes_the_effects_and_no_other ... ok
+test graphics_presets::tests::a_profile_on_the_former_high_follows_the_high_of_now_once ... ok
+test graphics_presets::tests::a_setting_changed_by_hand_reads_as_custom ... ok
+test graphics_presets::tests::deluxe_rt_keeps_the_ultra_fallback_and_its_dormant_custom_controls ... ok
+test graphics_presets::tests::each_level_matches_itself_after_applying ... ok
+test graphics_presets::tests::profiles_on_the_levels_of_version_20_follow_the_levels_of_now_once ... ok
+test settings::a_file_on_the_deluxe_of_version_18_takes_the_new_effects_once ... ok
+test settings::a_file_on_the_deluxe_of_version_19_turns_the_experimental_effects_off_once ... ok
+test settings::a_file_on_the_former_deluxe_moves_to_gtao_once ... ok
+test settings::a_file_on_the_high_of_version_19_moves_to_gtao_medium_once ... ok
+test settings::files_on_the_levels_of_version_20_follow_the_levels_of_now_once ... ok
+test settings::shadow_profile::tests::coverage_labels_and_whole_viewer_matching_follow_effective_values ... ok
+test settings::shadow_profile::tests::four_custom_tiers_are_independent_and_reset_only_the_selected_tier ... ok
+test settings::shadow_profile::tests::importing_a_legacy_scene_preserves_both_layouts_and_the_debug_view ... ok
+test settings::shadow_profile::tests::upstream_deluxe_shadows_import_as_ultra_before_and_after_ray_tracing ... ok
+test settings::the_traced_shadows_softness_moves_from_the_former_default_once ... ok
+test settings::shadow_profile::tests::saved_state_round_trips_without_rendering_dormant_values ... ok
+test settings::earlier_files_go_back_to_the_shadow_maps_once_and_the_former_deluxe_to_high ... ok
+test settings::shadow_profile::tests::old_single_slot_uses_its_own_base_and_recovers_paused_edits_explicitly ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

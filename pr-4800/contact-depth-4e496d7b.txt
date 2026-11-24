@@ -1,0 +1,4 @@
+AdapterInfo { name: "llvmpipe (LLVM 19.1.7, 256 bits)", vendor: 65541, device: 0, device_type: Cpu, device_pci_bus_id: "", driver: "llvmpipe", driver_info: "Mesa 25.0.7-2+deb13u1 (LLVM 19.1.7)", backend: Vulkan, subgroup_min_size: 8, subgroup_max_size: 8, transient_saves_memory: Some(false), limit_bucket: None }
+PASS contact depth pipeline, alpha coverage and twelve GPU readbacks
+AdapterInfo { name: "SwiftShader Device (Subzero)", vendor: 6880, device: 49374, device_type: Cpu, device_pci_bus_id: "", driver: "SwiftShader driver", driver_info: "", backend: Vulkan, subgroup_min_size: 4, subgroup_max_size: 4, transient_saves_memory: Some(false), limit_bucket: None }
+PASS contact depth pipeline, alpha coverage and twelve GPU readbacks
