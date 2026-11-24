@@ -91,7 +91,7 @@ if MODE in {"api", "shader"}:
 else:
     override_name = "object-hoisted.wgsl" if MODE == "hoisted" else "object-shared-shadow.wgsl"
     override_path = Path.cwd() / ".github/qa" / override_name
-    results = [run_viewer("after", "baked"), run_viewer("after", "override", override_path)]
+    results = [run_viewer("after", "override", override_path), run_viewer("after", "baked")]
 
 (OUT / "results.json").write_text(json.dumps(results, indent=2))
 with (OUT / "pixels.tsv").open("w") as output:

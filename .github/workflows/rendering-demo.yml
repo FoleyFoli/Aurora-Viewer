@@ -1,7 +1,7 @@
-name: Diagnose native Metal rendering errors
+name: Diagnose shared Metal shadows with override first
 on:
   push:
-    branches: [validation/metal-errors-57d978f7]
+    branches: [validation/metal-shared-first-57d978f7]
 permissions:
   contents: read
   actions: read
@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [api, shader, hoisted, shared]
+        mode: [shared]
     env:
       BUILD_RUN: '45129232727'
       BEFORE: 86b9cdacc3060b052159fa20e368ff4369b0c492
@@ -76,7 +76,7 @@ jobs:
         if: always() && !cancelled()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: Aurora-Viewer-57d978f7-native-${{ matrix.mode }}
+          name: Aurora-Viewer-57d978f7-native-${{ matrix.mode }}-first
           path: diagnostics/
           if-no-files-found: error
           retention-days: 14
