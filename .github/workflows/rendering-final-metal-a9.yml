@@ -1,0 +1,111 @@
+name: Verify ordinary Metal for the submitted shading revision
+
+on:
+  push:
+    branches: [validation/shading-final-metal-a9]
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_COMMIT: a9ba60f9c985eba6f80df68fcf40212c14cae2d2
+  SOURCE_TREE: d8588e7fc57af407be6c340cf9ad52b5a15ed220
+  APPROVED_COMMIT: 57d978f7a97d89c358fb40c838201d1c226ff84d
+  CARGO_TERM_COLOR: always
+
+jobs:
+  metal:
+    if: github.repository == 'FoleyFoli/Aurora-Viewer'
+    name: Ordinary Metal captures (${{ matrix.side }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - side: candidate
+            commit: 'a9ba60f9c985eba6f80df68fcf40212c14cae2d2'
+            tree: 'd8588e7fc57af407be6c340cf9ad52b5a15ed220'
+    env:
+      SOURCE_COMMIT: ${{ matrix.commit }}
+      SOURCE_TREE: ${{ matrix.tree }}
+      SIDE: ${{ matrix.side }}
+      BASELINE_COMMIT: '63cca6e0611425a11e6d8421f589fb367ac27d03'
+    runs-on: macos-15
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: source
+        shell: bash
+    steps:
+      - name: Check out the verification helper separately
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: validation
+          sparse-checkout: .github/qa
+          persist-credentials: false
+      - name: Check out the exact product source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SOURCE_COMMIT }}
+          path: source
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Verify source identity and comparison ancestry
+        run: |
+          [[ $SOURCE_COMMIT =~ ^[0-9a-f]{40}$ && $SOURCE_TREE =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
+          if [[ "$SIDE" == candidate ]]; then
+            git merge-base --is-ancestor "$APPROVED_COMMIT" HEAD
+            git merge-base --is-ancestor "$BASELINE_COMMIT" HEAD
+          else
+            test "$SOURCE_COMMIT" = "$BASELINE_COMMIT"
+          fi
+          test -z "$(git status --porcelain --untracked-files=all)"
+          mkdir -p ../evidence/metal
+          git show -s --format='commit=%H%ntree=%T%nparents=%P%nsubject=%s' HEAD > ../evidence/metal/source.txt
+          printf 'workflow=%s\nrun=%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" >> ../evidence/metal/source.txt
+      - name: Build the exact source with the repository CI profile
+        run: |
+          rustup toolchain install --profile minimal --no-self-update
+          cargo build --profile ci --locked -p aurora-viewer 2>&1 | tee ../evidence/metal/build.log
+          test -z "$(git status --porcelain --untracked-files=no)"
+          shasum -a 256 target/ci/aurora-viewer > ../evidence/metal/executable.sha256
+          rustc --version > ../evidence/metal/toolchain.txt
+          cargo --version >> ../evidence/metal/toolchain.txt
+      - name: Retain the exact native executable for follow-up comparisons
+        run: |
+          mkdir -p ../native-build
+          cp target/ci/aurora-viewer ../native-build/aurora-viewer
+          printf '%s\n' "$SOURCE_COMMIT" > ../native-build/revision.txt
+          (cd ../native-build && shasum -a 256 aurora-viewer > viewer.sha256 && tar -czf ../native-client.tar.gz aurora-viewer revision.txt viewer.sha256)
+      - name: Upload native test executable
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: rendering-native-client-${{ env.SOURCE_COMMIT }}
+          path: native-client.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+      - name: Compile the native PNG inspector
+        run: swiftc ../validation/.github/qa/final-metal-pixels.swift -o "$RUNNER_TEMP/final-metal-pixels"
+      - name: Capture the three matched scenes on ordinary Metal
+        timeout-minutes: 40
+        run: |
+          caffeinate -dimsu python3 ../validation/.github/qa/final-metal.py \
+            target/ci/aurora-viewer "$RUNNER_TEMP/final-metal-pixels" ../evidence/metal
+          test -z "$(git status --porcelain --untracked-files=no)"
+      - name: Collect native Metal messages
+        if: always() && !cancelled()
+        run: |
+          mkdir -p ../evidence/metal
+          /usr/bin/log show --last 30m --style compact --predicate 'process == "aurora-viewer"' --info \
+            > ../evidence/metal/native-system.log 2>&1 || true
+      - name: Upload the Metal render evidence
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rendering-final-metal-${{ matrix.side }}-${{ matrix.commit }}
+          path: evidence/metal/
+          if-no-files-found: error
+          retention-days: 14
