@@ -1,0 +1,69 @@
+name: Verify the original Windows Mesa world captures
+on:
+  push:
+    branches: [validation/windows-shading-evidence]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  independently-verify:
+    if: github.repository == 'FoleyFoli/Aurora-Viewer'
+    name: Read original ${{ matrix.source }} Windows frame and logs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - source: repaired
+            run: '45360112796'
+            job: '138327723503'
+          - source: final
+            run: '45363769384'
+            job: '138340116333'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: .github/qa
+          persist-credentials: false
+      - name: Fetch the original render run, Windows job and evidence archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RENDER_RUN: ${{ matrix.run }}
+          RENDER_JOB: ${{ matrix.job }}
+        run: |
+          set -euo pipefail
+          mkdir input
+          project="repos/$GITHUB_REPOSITORY/actions"
+          gh api "$project/runs/$RENDER_RUN" > input/run.json
+          gh api "$project/jobs/$RENDER_JOB" > input/job.json
+          gh api "$project/runs/$RENDER_RUN/artifacts" > input/artifacts.json
+          id=$(jq -er '.artifacts | if length == 1 then .[0].id else error("Expected a single raw capture artifact") end' input/artifacts.json)
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" "$GITHUB_API_URL/$project/artifacts/$id/zip" -o input/render.zip
+      - name: Ensure the distro PNG decoder is present
+        run: |
+          /usr/bin/python3 -c 'from PIL import Image' || {
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends python3-pil
+          }
+      - name: Validate raw bytes, recorded renderer and process result
+        env:
+          SOURCE: ${{ matrix.source }}
+        run: |
+          set -euo pipefail
+          /usr/bin/python3 .github/qa/verify-windows-mesa.py "$SOURCE" input
+          {
+            echo "### Independent native Windows evidence verification"
+            echo 'Values below are derived from the original immutable render evidence.'
+            echo '~~~json'
+            cat "windows-$SOURCE-verification.json"
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain the verification and original identifiers
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: windows-mesa-verified-${{ matrix.source }}
+          path: windows-${{ matrix.source }}-verification.json
+          if-no-files-found: error
+          retention-days: 14
