@@ -1,0 +1,109 @@
+name: Verify the packaged shading client on Windows Mesa Vulkan
+on:
+  push:
+    branches: [validation/windows-shadow-lavapipe]
+permissions:
+  contents: read
+  actions: read
+env:
+  BUILD_RUN_ID: '45346318145'
+  BUILD_WORKFLOW_COMMIT: 'e5b5daf750c940b4a23e3ef6c96fbef5183de01c'
+  SOURCE_COMMIT: '75c022abdbaad690ab14975674ec900ace2c51fe'
+  WINDOWS_SMOKE_DRIVER: 'mesa-lavapipe'
+  SOURCE_TREE: '4d449b0369533d5e5ea857b09da08b6040c2788e'
+jobs:
+  windows-smoke:
+    if: github.repository == 'FoleyFoli/Aurora-Viewer'
+    name: Launch the packaged viewer with MSYS2 Mesa lavapipe (software Vulkan)
+    runs-on: windows-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: .github/qa
+          persist-credentials: false
+      - name: Verify the originating run, successful Windows job and artifact ID
+        id: verify
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          root="repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID"
+          mkdir -p evidence/windows-smoke
+          gh api "$root" > "$RUNNER_TEMP/aurora-run.json"
+          jq -e --arg sha "$BUILD_WORKFLOW_COMMIT" --arg repo "$GITHUB_REPOSITORY" \
+            '.head_sha == $sha and .repository.full_name == $repo and .head_repository.full_name == $repo and
+             .event == "push" and .head_branch == "validation/shadow-fix-verified" and
+             .path == ".github/workflows/rendering-fix-verified.yml"' "$RUNNER_TEMP/aurora-run.json"
+          gh api "$root/jobs" --jq '.jobs[] | select(.name == "Stock Windows checks on the exact source") | .conclusion' | grep -Fxq success
+          gh api "$root/artifacts" > "$RUNNER_TEMP/aurora-artifacts.json"
+          jq -e --arg name "Aurora-Viewer-rendering-test-$SOURCE_COMMIT" \
+            --arg sha "$BUILD_WORKFLOW_COMMIT" --argjson run "$BUILD_RUN_ID" \
+            '[.artifacts[] | select(.name == $name and .expired == false and
+              .workflow_run.id == $run and .workflow_run.head_sha == $sha and
+              (.digest | test("^sha256:[0-9a-f]{64}$")))] |
+              if length == 1 then .[0] | {id,name,digest,workflow_run} else error("Expected one exact portable client artifact") end' \
+            "$RUNNER_TEMP/aurora-artifacts.json" > evidence/windows-smoke/source-artifact.json
+          echo "artifact_id=$(jq -r '.id' evidence/windows-smoke/source-artifact.json)" >> "$GITHUB_OUTPUT"
+      - name: Download the verified portable client artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BUILD_RUN_ID }}
+          artifact-ids: ${{ steps.verify.outputs.artifact_id }}
+          merge-multiple: true
+          path: test-client
+      - name: Install the signed MSYS2 UCRT64 Mesa, Vulkan headers and compiler
+        uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2.34.0
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-mesa mingw-w64-ucrt-x86_64-vulkan-headers mingw-w64-ucrt-x86_64-gcc
+      - name: Record the software-driver toolchain
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          probe_dir="$(cygpath -u "$RUNNER_TEMP")/aurora-vk-probe"
+          mkdir -p "$probe_dir"
+          # Enumerate through the same signed loader and installed Vulkan headers.
+          # Keep the diagnostic separate from the packaged client.
+          cat > "$probe_dir/probe.c" <<'CSOURCE'
+          #include <stdio.h>
+          #include <vulkan/vulkan.h>
+          int main(void) {
+              VkInstance instance;
+              VkInstanceCreateInfo ci = { .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+              VkResult result = vkCreateInstance(&ci, NULL, &instance);
+              if (result != VK_SUCCESS) { fprintf(stderr, "vkCreateInstance: %d\n", (int)result); return 1; }
+              uint32_t count = 32;
+              VkPhysicalDevice devices[32];
+              result = vkEnumeratePhysicalDevices(instance, &count, devices);
+              if (result == VK_SUCCESS) {
+                  for (uint32_t i = 0; i < count; ++i) {
+                      VkPhysicalDeviceProperties props;
+                      vkGetPhysicalDeviceProperties(devices[i], &props);
+                      printf("adapter %u: %s (type %u, vendor 0x%x)\n", i, props.deviceName,
+                             (unsigned)props.deviceType, props.vendorID);
+                  }
+              } else { fprintf(stderr, "vkEnumeratePhysicalDevices: %d\n", (int)result); }
+              vkDestroyInstance(instance, NULL);
+              return result != VK_SUCCESS || count == 0;
+          }
+          CSOURCE
+          gcc -std=c11 -Wall -Wextra -Werror "$probe_dir/probe.c" -lvulkan-1 -o "$probe_dir/probe.exe"
+          cp /ucrt64/bin/vulkan-1.dll "$probe_dir/"
+          pacman -Q > evidence/windows-smoke/driver-packages.txt
+          echo "MESA_UCRT64=$(cygpath -w /ucrt64)" >> "$GITHUB_ENV"
+      - name: Verify and launch the downloaded EXE and inspect its world capture
+        shell: pwsh
+        run: ./.github/qa/final-windows-lavapipe.ps1
+      - name: Upload Windows runtime evidence
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rendering-final-windows-lavapipe-${{ env.SOURCE_COMMIT }}
+          path: evidence/windows-smoke/
+          if-no-files-found: error
+          retention-days: 14
