@@ -1,0 +1,78 @@
+--- a/crates/aurora-render/src/shaders/common.wgsl
++++ b/crates/aurora-render/src/shaders/common.wgsl
+@@ -1662,74 +1662,7 @@
+ fn directional_pcss(depth_map: texture_depth_2d, vp: mat4x4<f32>, n: vec3<f32>,
+         uv: vec2<f32>, receiver_z: f32, receiver_bias: f32, origin: vec2<f32>,
+         size: f32, world_texel: f32, depth_per_metre: f32, base_radius: f32) -> vec3<f32> {
+-    let tangent = frame.detail_params.w;
+-    let texel_depth = world_texel * depth_per_metre;
+-    let position = uv * size;
+-    let edge = min(position, vec2<f32>(size) - position);
+-    let margin = min(edge.x, edge.y) - 0.5;
+-    let projected_normal = (vp * vec4<f32>(n, 0.0)).xyz;
+-    let facing = projected_normal.z / depth_per_metre;
+-    // Depth zero is the nearest possible blocker in an orthographic map.
+-    let radius_per_depth = tangent / texel_depth;
+-    let search_radius = min(min(PCSS_MAX_TEXELS, PCSS_MAX_METRES / world_texel), receiver_z * radius_per_depth);
+-    if (search_radius <= base_radius || margin <= 1.0 || abs(facing) <= 0.05) {
+-        return vec3<f32>(0.0);
+-    }
+-    // Find the plane's reference depth at each raw texel centre, including
+-    // the Y flip from light clip space to texture space. This prevents a
+-    // continuous sloping receiver from counting as its own blocker.
+-    let extent = size * world_texel * 0.5;
+-    let slope = vec2<f32>(-projected_normal.x, projected_normal.y) * (extent * texel_depth / facing);
+-    let search = min(search_radius, margin);
+-    let tile = vec2<i32>(origin);
+-    var blockers = pcss_blocker(depth_map, tile, position, vec2<f32>(0.0), receiver_z, receiver_bias, slope, radius_per_depth);
+-    // Grow outward from subtexel neighbours, independently of the search
+-    // horizon. Rotating alternate rings covers more silhouette directions.
+-    // Seven octagons reach 256 texels, including the last clipped ring.
+-    var ring = min(search, 1.5);
+-    for (var j = 0u; j < 7u; j++) {
+-        let rotation = select(vec2<f32>(1.0, 0.0), vec2<f32>(0.92388, 0.382683), (j & 1u) == 1u);
+-        for (var i = 0u; i < 8u; i++) {
+-            let offset = pcss_rotate(PCSS_OCTAGON[i], rotation) * ring;
+-            blockers += pcss_blocker(depth_map, tile, position, offset, receiver_z, receiver_bias, slope, radius_per_depth);
+-        }
+-        if (ring >= search) { break; }
+-        ring = min(search, ring * 2.5);
+-    }
+-    if (blockers.y <= 0.0) { return vec3<f32>(0.0); }
+-    // gap / depth_per_metre is separation along the light in metres.
+-    // The light's apparent radius gives the footprint perpendicular to it.
+-    let radius = min(search_radius, blockers.x / blockers.y * radius_per_depth);
+-    let blend = smoothstep(base_radius, base_radius + 1.0, radius)
+-        * smoothstep(radius + 0.5, radius + 2.0, margin) * smoothstep(0.05, 0.15, abs(facing));
+-    if (blend <= 0.0) { return vec3<f32>(0.0); }
+-    let inv_dims = 1.0 / vec2<f32>(textureDimensions(depth_map));
+-    // Bilinear compares use one reference for four texel centres. Cover
+-    // their slope residual while keeping the search's physical gap separate.
+-    let ref_z = receiver_z - receiver_bias - (abs(slope.x) + abs(slope.y));
+-    let centre = origin + position;
+-    // Keep one static disk callsite: duplicating this filtered shadow body
+-    // multiplies driver optimizer work at every graded/cascade callsite.
+-    // The receiver-dependent bound avoids constant-rotation copies while
+-    // retaining directions, weights and accumulation order.
+-    let middle = smoothstep(5.0, 12.0, radius);
+-    let wide = smoothstep(16.0, 32.0, radius);
+-    let patterns = 1u + select(0u, 1u, middle > 0.0) + select(0u, 1u, wide > 0.0);
+-    var sum = 0.0;
+-    for (var pattern = 0u; pattern < patterns; pattern++) {
+-        var rotation = vec2<f32>(1.0, 0.0);
+-        var weight = 1.0;
+-        if (pattern == 1u) {
+-            rotation = vec2<f32>(0.5, 0.8660254);
+-            weight = middle;
+-        }
+-        if (pattern == 2u) {
+-            rotation = vec2<f32>(0.5, -0.8660254);
+-            weight = wide;
+-        }
+-        sum += weight * pcss_disk(depth_map, centre, inv_dims, radius, slope, ref_z, rotation);
+-    }
+-    return vec3<f32>(sum / (1.0 + middle + wide), blend, radius);
++    return vec3<f32>(0.0);
+ }
+ 
+ // Mip 0 retains full-resolution local casters. Each tile of mip 1 contains

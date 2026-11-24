@@ -1,0 +1,144 @@
+--- a/crates/aurora-render/src/shaders/common.wgsl
++++ b/crates/aurora-render/src/shaders/common.wgsl
+@@ -1645,16 +1645,45 @@
+     return vec2<f32>(gap * weight, weight);
+ }
+ 
++// Each active pattern has twelve opposite pairs. A receiver-dependent tap
++// count keeps one texture operation in the loop across all three rotations.
++fn pcss_disk_weights(radius: f32) -> vec3<f32> {
++    return vec3<f32>(1.0, smoothstep(5.0, 12.0, radius), smoothstep(16.0, 32.0, radius));
++}
++
++fn pcss_disk_tap_count(weights: vec3<f32>) -> u32 {
++    return 24u + select(0u, 24u, weights.y > 0.0) + select(0u, 24u, weights.z > 0.0);
++}
++
++fn pcss_disk_pair(tap: u32) -> vec2<f32> {
++    var rotation = vec2<f32>(1.0, 0.0);
++    if (tap >= 48u) {
++        rotation = vec2<f32>(0.5, -0.8660254);
++    } else if (tap >= 24u) {
++        rotation = vec2<f32>(0.5, 0.8660254);
++    }
++    return pcss_rotate(PCSS_DISK_PAIRS[(tap / 2u) % 12u], rotation);
++}
++
+ fn pcss_disk(depth_map: texture_depth_2d, centre: vec2<f32>, inv_dims: vec2<f32>,
+-        radius: f32, slope: vec2<f32>, ref_z: f32, rotation: vec2<f32>) -> f32 {
+-    var visibility = 0.0;
+-    for (var i = 0u; i < 12u; i++) {
+-        let offset = pcss_rotate(PCSS_DISK_PAIRS[i], rotation) * radius;
++        radius: f32, slope: vec2<f32>, ref_z: f32) -> f32 {
++    let weights = pcss_disk_weights(radius);
++    let tap_count = pcss_disk_tap_count(weights);
++    var pattern = 0.0;
++    var sum = 0.0;
++    for (var tap = 0u; tap < tap_count; tap++) {
++        let offset = pcss_disk_pair(tap) * radius;
+         let ref_offset = dot(slope, offset);
+-        visibility += textureSampleCompareLevel(depth_map, shadow_sampler, (centre + offset) * inv_dims, ref_z + ref_offset);
+-        visibility += textureSampleCompareLevel(depth_map, shadow_sampler, (centre - offset) * inv_dims, ref_z - ref_offset);
+-    }
+-    return visibility / 24.0;
++        let reverse = (tap & 1u) != 0u;
++        let uv = select(centre + offset, centre - offset, reverse) * inv_dims;
++        let reference = select(ref_z + ref_offset, ref_z - ref_offset, reverse);
++        pattern += textureSampleCompareLevel(depth_map, shadow_sampler, uv, reference);
++        if (tap % 24u == 23u) {
++            sum += weights[tap / 24u] * (pattern / 24.0);
++            pattern = 0.0;
++        }
++    }
++    return sum / (weights.x + weights.y + weights.z);
+ }
+ 
+ // Returns filtered visibility, weight over the original lookup and disk radius in texels. Subtexel
+@@ -1708,28 +1737,8 @@
+     // their slope residual while keeping the search's physical gap separate.
+     let ref_z = receiver_z - receiver_bias - (abs(slope.x) + abs(slope.y));
+     let centre = origin + position;
+-    // Keep one static disk callsite: duplicating this filtered shadow body
+-    // multiplies driver optimizer work at every graded/cascade callsite.
+-    // The receiver-dependent bound avoids constant-rotation copies while
+-    // retaining directions, weights and accumulation order.
+-    let middle = smoothstep(5.0, 12.0, radius);
+-    let wide = smoothstep(16.0, 32.0, radius);
+-    let patterns = 1u + select(0u, 1u, middle > 0.0) + select(0u, 1u, wide > 0.0);
+-    var sum = 0.0;
+-    for (var pattern = 0u; pattern < patterns; pattern++) {
+-        var rotation = vec2<f32>(1.0, 0.0);
+-        var weight = 1.0;
+-        if (pattern == 1u) {
+-            rotation = vec2<f32>(0.5, 0.8660254);
+-            weight = middle;
+-        }
+-        if (pattern == 2u) {
+-            rotation = vec2<f32>(0.5, -0.8660254);
+-            weight = wide;
+-        }
+-        sum += weight * pcss_disk(depth_map, centre, inv_dims, radius, slope, ref_z, rotation);
+-    }
+-    return vec3<f32>(sum / (1.0 + middle + wide), blend, radius);
++    let visibility = pcss_disk(depth_map, centre, inv_dims, radius, slope, ref_z);
++    return vec3<f32>(visibility, blend, radius);
+ }
+ 
+ // Mip 0 retains full-resolution local casters. Each tile of mip 1 contains
+@@ -1821,14 +1830,21 @@
+ }
+ 
+ fn paired_disk(local_map: texture_depth_2d, local: LocalShadow, remote: DistantShadow,
+-        remote_ref: f32, remote_radius: f32, rotation: vec2<f32>) -> f32 {
++        remote_ref: f32, remote_radius: f32) -> f32 {
++    let weights = pcss_disk_weights(2.0 * remote_radius);
++    let tap_count = pcss_disk_tap_count(weights);
++    var pattern = 0.0;
+     var sum = 0.0;
+-    for (var i = 0u; i < 12u; i++) {
+-        let d = pcss_rotate(PCSS_DISK_PAIRS[i], rotation);
+-        sum += paired_visibility(local_map, local, remote, remote_ref, remote_radius, d);
+-        sum += paired_visibility(local_map, local, remote, remote_ref, remote_radius, -d);
+-    }
+-    return sum / 24.0;
++    for (var tap = 0u; tap < tap_count; tap++) {
++        let pair = pcss_disk_pair(tap);
++        let direction = select(pair, -pair, (tap & 1u) != 0u);
++        pattern += paired_visibility(local_map, local, remote, remote_ref, remote_radius, direction);
++        if (tap % 24u == 23u) {
++            sum += weights[tap / 24u] * (pattern / 24.0);
++            pattern = 0.0;
++        }
++    }
++    return sum / (weights.x + weights.y + weights.z);
+ }
+ 
+ // The close crop uses the original detail tile for distant blockers. Its
+@@ -1884,26 +1900,9 @@
+     let local_ref = receiver_z - bias - abs(slope.x) - abs(slope.y);
+     let local = LocalShadow(origin + uv * size, 1.0 / vec2<f32>(textureDimensions(local_map)), local_ref,
+         slope, soft.z, soft.y, local_visibility);
+-    var sum = 0.0;
+-    var weight = 0.0;
+-    for (var ring = 0u; ring < 3u; ring++) {
+-        var rotation = vec2<f32>(1.0, 0.0);
+-        var w = 1.0;
+-        if (ring == 1u) {
+-            w = smoothstep(5.0, 12.0, 2.0 * radius);
+-            rotation = vec2<f32>(0.5, 0.8660254);
+-        }
+-        if (ring == 2u) {
+-            w = smoothstep(16.0, 32.0, 2.0 * radius);
+-            rotation = vec2<f32>(0.5, -0.8660254);
+-        }
+-        if (w <= 0.0) { break; }
+-        sum += w * paired_disk(local_map, local, remote, ref_z, radius, rotation);
+-        weight += w;
+-    }
+     // Both this integral and the independent local estimate sample a finite
+     // set of directions. Adding a distant blocker cannot reveal a local one.
+-    return min(local_visibility, sum / weight);
++    return min(local_visibility, paired_disk(local_map, local, remote, ref_z, radius));
+ }
+ 
+ fn pcss_compose(local_map: texture_depth_2d, local_visibility: f32, soft: vec3<f32>,

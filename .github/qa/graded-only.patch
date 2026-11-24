@@ -1,0 +1,14 @@
+--- a/crates/aurora-render/src/shaders/common.wgsl
++++ b/crates/aurora-render/src/shaders/common.wgsl
+@@ -2717,10 +2717,7 @@
+ }
+ 
+ fn mapped_shadow(world_pos: vec3<f32>, n: vec3<f32>, vertex_depth: f32) -> vec4<f32> {
+-    if (frame.detail_params.x > 0.0) {
+-        return graded_shadow(world_pos, n, graded_distance(world_pos));
+-    }
+-    return vec4<f32>(0.0, 0.0, 0.0, cascade_visibility(world_pos, n, vertex_depth));
++    return graded_shadow(world_pos, n, graded_distance(world_pos));
+ }
+ 
+ fn cascade_visibility(world_pos: vec3<f32>, n: vec3<f32>, vertex_depth: f32) -> f32 {
