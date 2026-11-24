@@ -14,7 +14,7 @@ from pathlib import Path
 TEMP = Path(sys.argv[1]).resolve()
 OUT = Path(sys.argv[2]).resolve()
 MODE = sys.argv[3]
-if MODE not in {"ordinary", "metal-api-only", "wgpu-only", "validation-both", "shadow-source-control", "shadow-graph-bypass", "occlusion-off", "dof-off"}:
+if MODE not in {"ordinary", "metal-api-only", "wgpu-only", "validation-both", "shadow-source-control", "shadow-graph-bypass", "occlusion-off", "dof-off", "pcss-single-loop"}:
     raise ValueError(f"Unknown validation mode: {MODE}")
 SOURCE = Path.cwd() / "crates/aurora-render/src/shaders"
 OUT.mkdir(exist_ok=True)
@@ -85,6 +85,7 @@ def run_viewer(side, name, override=None):
             if MODE == "shadow-graph-bypass":
                 shutil.copy2(override, SOURCE / "common.wgsl")
             expected = {
+                "pcss-single-loop": "2776eef6cc3974c52c7347c4e1a15f4eed8ce93619ac68969eb7fcf5c5c40405",
                 "shadow-graph-bypass": "10914b6531b5473a0c793421f2e61fd4ee3c75f4ee52281567d56c76e87ecf3b",
                 "shadow-source-control": "33a3070f6e044399697172750afb19625dcfe0637cb301fcabc09c22d7517667",
             }[MODE]
@@ -129,7 +130,7 @@ def run_viewer(side, name, override=None):
 override_path = None
 if MODE == "shadow-graph-bypass":
     override_path = Path.cwd() / ".github/qa/common-directional-graph-bypass.wgsl"
-elif MODE == "shadow-source-control":
+elif MODE in {"shadow-source-control", "pcss-single-loop"}:
     override_path = SOURCE / "common.wgsl"
 results = [run_viewer("after", "candidate", override_path), run_viewer("before", "upstream")]
 

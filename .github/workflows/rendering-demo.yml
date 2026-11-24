@@ -1,7 +1,7 @@
-name: Isolate native Metal rendering failures
+name: Compare the single-loop PCSS filter on ordinary Metal
 on:
   push:
-    branches: [validation/metal-validation-split-57d978f7]
+    branches: [validation/metal-pcss-single-loop-57d978f7]
 permissions:
   contents: read
   actions: read
@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [ordinary, metal-api-only, wgpu-only, validation-both, dof-off, shadow-source-control, shadow-graph-bypass, occlusion-off]
+        mode: [pcss-single-loop]
     env:
       BUILD_RUN: '45129232727'
       BEFORE: 86b9cdacc3060b052159fa20e368ff4369b0c492
@@ -25,6 +25,14 @@ jobs:
             .github/qa
             crates/aurora-render/src/shaders
           persist-credentials: false
+      - name: Apply and verify the exact candidate shader override
+        shell: bash
+        run: |
+          shader=crates/aurora-render/src/shaders/common.wgsl
+          printf '%s  %s\n' 33a3070f6e044399697172750afb19625dcfe0637cb301fcabc09c22d7517667 "$shader" | shasum -a 256 -c
+          git apply --check .github/qa/pcss-single-loop.patch
+          git apply .github/qa/pcss-single-loop.patch
+          printf '%s  %s\n' 2776eef6cc3974c52c7347c4e1a15f4eed8ce93619ac68969eb7fcf5c5c40405 "$shader" | shasum -a 256 -c
       - name: Verify the archived builds
         env:
           GH_TOKEN: ${{ github.token }}
