@@ -1,0 +1,55 @@
+--- a/crates/aurora-render/src/shaders/common.wgsl
++++ b/crates/aurora-render/src/shaders/common.wgsl
+@@ -1982,29 +1982,29 @@
+         receiver_bias = 0.0005;
+     }
+     let size = 0.5 * atlas.x;
+-    var soft = vec3<f32>(0.0);
+-    if (frame.detail_params.w > 0.0) {
+-        soft = directional_pcss(shadow_map, m, n, uv, ndc.z, receiver_bias, tile * size,
+-            size, 2.0 * radius * texel, depth_per_metre, max(1.0, 0.5 * span / texel));
+-    }
+-    var local = soft.x;
+-    if (soft.y < 1.0) {
+-        var sum = 0.0;
+-        for (var y = 0u; y < taps; y++) {
+-            for (var x = 0u; x < taps; x++) {
+-                let o = (vec2<f32>(f32(x), f32(y)) - center) * step;
+-                // clamped to the centers of the tile's edge texels: the same
+-                // result as the clamp-to-edge of a separate texture, never a
+-                // texel of the neighbouring tile
+-                let t = clamp(uv + o, vec2<f32>(0.5 * texel), vec2<f32>(1.0 - 0.5 * texel));
+-                sum += textureSampleCompareLevel(shadow_map, shadow_sampler, (t + tile) * tile_scale, ndc.z - receiver_bias);
+-            }
+-        }
+-        let original = sum / f32(taps * taps);
+-        local = mix(original, soft.x, soft.y);
+-    }
+-    return pcss_compose(shadow_map, local, soft, m, n, uv, ndc.z, receiver_bias,
+-        tile * size, cascade, size, 2.0 * radius * texel, depth_per_metre);
++    var sum = 0.0;
++    for (var y = 0u; y < taps; y++) {
++        for (var x = 0u; x < taps; x++) {
++            let o = (vec2<f32>(f32(x), f32(y)) - center) * step;
++            // clamped to the centers of the tile's edge texels: the same
++            // result as the clamp-to-edge of a separate texture, never a
++            // texel of the neighbouring tile
++            let t = clamp(uv + o, vec2<f32>(0.5 * texel), vec2<f32>(1.0 - 0.5 * texel));
++            sum += textureSampleCompareLevel(shadow_map, shadow_sampler, (t + tile) * tile_scale, ndc.z - receiver_bias);
++        }
++    }
++    let local = sum / f32(taps * taps);
++    let world_texel = 2.0 * radius * texel;
++    if (local <= 0.0 || textureNumLevels(shadow_map) < 2u) { return local; }
++    let remote_size = i32(size * 0.5);
++    let remote_tile = vec2<i32>(i32(cascade % 2u), i32(cascade / 2u)) * remote_size;
++    let remote_normal = (m * vec4<f32>(n, 0.0)).xyz;
++    let facing = remote_normal.z / depth_per_metre;
++    let safe_facing = select(max(0.05, facing), min(-0.05, facing), facing < 0.0);
++    let slope = vec2<f32>(-remote_normal.x, remote_normal.y) * (0.5 * size * world_texel * world_texel * depth_per_metre / safe_facing);
++    let remote = DistantShadow(remote_tile, remote_size, uv * f32(remote_size), ndc.z, slope * (2.0 * world_texel / world_texel));
++    let ref_z = remote.ref_z - receiver_bias - abs(remote.slope.x) - abs(remote.slope.y);
++    return min(local, distant_visibility(remote, remote.position, ref_z, 0.0));
+ }
+ 
+ // Four-level directional shadow sampling. Level zero uses a separate depth
