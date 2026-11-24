@@ -85,6 +85,18 @@ def viewer_environment(case, root):
     return env, prefs
 
 
+def validate_hair_pose(viewer_log):
+    # The original asynchronous click can time out while a fully lit wide view is captured.
+    pose = re.search(r"demo camera f641: ThirdPerson, pos Vec3\(([^)]+)\), target Vec3\(([^)]+)\), "
+                     r"fov ([0-9.]+)°, on avatar (true|false), [^\n]*?animating (true|false)", viewer_log)
+    if pose is None or pose[4] != "false" or pose[5] != "false" or abs(float(pose[3]) - 60.0) > 0.1:
+        raise RuntimeError("Hair fixture did not settle in the upstream close-up camera state")
+    for actual, expected in ((pose[1], (132.10, 128.55, 33.86)), (pose[2], (132.87, 128.94, 33.47))):
+        position = [float(component) for component in actual.split(",")]
+        if len(position) != 3 or sum((x - y) ** 2 for x, y in zip(position, expected)) > 0.05 ** 2:
+            raise RuntimeError(f"Hair close-up camera missed its reference pose: {pose[0]}")
+
+
 def validate_pixels(stats):
     if (stats["width"], stats["height"]) != (960, 560):
         raise RuntimeError(f"Unexpected capture dimensions: {stats}")
@@ -236,6 +248,8 @@ def run_case(viewer, inspector, output, case, identity):
                 (output / "native-system.log").read_text(errors="replace") + "\n"
                 + (output / "native-system-stderr.log").read_text(errors="replace"),
             )
+            if case == "hair-close":
+                validate_hair_pose(viewer_log)
             validate_pixels(stats)
             report["passed"] = True
     except (OSError, RuntimeError, ValueError, KeyError, subprocess.SubprocessError) as exc:
