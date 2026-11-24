@@ -119,17 +119,45 @@ try {
     $env:AURORA_CAPTURE_FRAMES = '60,605,650'
     $env:AURORA_CAPTURE_EXIT = '1'
     $env:RUST_LOG = 'info'
-    # Obtain the native viewer's selected High settings with the same fresh profile and fixture.
-    # The first capture only seeds settings; it is deliberately outside the measured evidence.
-    $env:AURORA_CAPTURE = Join-Path $root 'seed.png'
-    $env:AURORA_CAPTURE_FRAMES = '2'
+    # Seed a separate disposable root. The measured viewer retains a fresh log and session folder.
+    $seedRoot = Join-Path $env:RUNNER_TEMP "aurora-high-settings-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+    New-Item -ItemType Directory -Path $seedRoot | Out-Null
+    $seedInstall = Join-Path $seedRoot 'install'
+    Copy-Item -LiteralPath $install -Destination $seedInstall -Recurse
+    Copy-Item -LiteralPath (Join-Path $root 'aurora-update-test.json') -Destination $seedRoot
+    $env:AURORA_UPDATE_TEST_ROOT = $seedRoot
+    $env:AURORA_CAPTURE = Join-Path $seedRoot 'seed.png'
+    $env:AURORA_CAPTURE_FRAMES = '60'
     $env:AURORA_LOG_NAME = 'seed-high'
-    $proc = Start-Process -FilePath $exe -ArgumentList '--title','Seed-High','--language','en' -WorkingDirectory $install -PassThru
-    if (!$proc.WaitForExit(600000) -or $proc.ExitCode -ne 0) { throw 'Mesa failed to produce a clean fresh High profile' }
-    $seedLog = Get-Content (Join-Path $root 'logs/seed-high.log') -Raw
-    if (!$seedLog.Contains('new profile: graphics level High') -or !$seedLog.Contains('demo soft shadows: 16 prims')) { throw 'Missing native High settings' }
-    $settingsPath = Join-Path $root 'profile/settings.json'
-    $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json -AsHashtable
+    $proc = Start-Process -FilePath (Join-Path $seedInstall 'aurora-viewer.exe') -ArgumentList '--title','Seed-High','--language','en' -WorkingDirectory $seedInstall -PassThru -RedirectStandardOutput (Join-Path $output 'seed.stdout.txt') -RedirectStandardError (Join-Path $output 'seed.stderr.txt')
+    $seedFile = Join-Path $seedRoot 'profile/settings.json'
+    $seedLogPath = Join-Path $seedRoot 'logs/seed-high.log'
+    $limit = [DateTime]::UtcNow.AddMinutes(12)
+    $settings = $null
+    while ([DateTime]::UtcNow -lt $limit -and !$settings) {
+        if ((Test-Path $seedLogPath) -and (Test-Path $seedFile)) {
+            try {
+                $stream = [IO.File]::Open($seedLogPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+                try {
+                    $reader = [IO.StreamReader]::new($stream)
+                    try { $lines = $reader.ReadToEnd() } finally { $reader.Dispose() }
+                } finally { $stream.Dispose() }
+                $candidate = Get-Content $seedFile -Raw | ConvertFrom-Json -AsHashtable
+                if ($lines.Contains('new profile: graphics level High') -and $candidate.graded_sun_shadows -eq $true) {
+                    $settings = $candidate
+                }
+            } catch [IO.IOException] { }
+        }
+        if (!$settings -and $proc.HasExited) { break }
+        if (!$settings) { Start-Sleep -Seconds 2 }
+    }
+    if (!$proc.HasExited) { $proc.Kill($true); [void]$proc.WaitForExit(10000) }
+    if (Test-Path $seedLogPath) { Copy-Item $seedLogPath (Join-Path $output 'seed-high.log') }
+    if (!$settings) { throw 'The native viewer did not write its fresh High settings before the seed deadline; see seed-high.log' }
+    $env:AURORA_UPDATE_TEST_ROOT = $root
+    $profile = Join-Path $root 'profile'
+    New-Item -ItemType Directory -Path $profile -Force | Out-Null
+    $settingsPath = Join-Path $profile 'settings.json'
     function Record-Settings($settings, $path) {
         $keys = $settings.Keys | Where-Object { $_ -match 'shadow|draw_distance|^aa$|camera_fov' }
         $selected = [ordered]@{}
