@@ -29,7 +29,7 @@ jobs:
       SOURCE_TREE: ${{ matrix.tree }}
       SIDE: ${{ matrix.side }}
       BASELINE_COMMIT: '63cca6e0611425a11e6d8421f589fb367ac27d03'
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 120
     defaults:
       run:
