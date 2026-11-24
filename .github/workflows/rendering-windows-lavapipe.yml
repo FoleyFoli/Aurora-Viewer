@@ -6,17 +6,17 @@ permissions:
   contents: read
   actions: read
 env:
-  BUILD_RUN_ID: '45346318145'
-  BUILD_WORKFLOW_COMMIT: 'e5b5daf750c940b4a23e3ef6c96fbef5183de01c'
-  SOURCE_COMMIT: '75c022abdbaad690ab14975674ec900ace2c51fe'
+  BUILD_RUN_ID: '45359333007'
+  BUILD_WORKFLOW_COMMIT: '76f2f7667b686306bda40e730e6861d8dcb35d12'
+  SOURCE_COMMIT: 'a9ba60f9c985eba6f80df68fcf40212c14cae2d2'
   WINDOWS_SMOKE_DRIVER: 'mesa-lavapipe'
-  SOURCE_TREE: '4d449b0369533d5e5ea857b09da08b6040c2788e'
+  SOURCE_TREE: 'd8588e7fc57af407be6c340cf9ad52b5a15ed220'
 jobs:
   windows-smoke:
     if: github.repository == 'FoleyFoli/Aurora-Viewer'
     name: Launch the packaged viewer with MSYS2 Mesa lavapipe (software Vulkan)
     runs-on: windows-latest
-    timeout-minutes: 70
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,9 +35,9 @@ jobs:
           gh api "$root" > "$RUNNER_TEMP/aurora-run.json"
           jq -e --arg sha "$BUILD_WORKFLOW_COMMIT" --arg repo "$GITHUB_REPOSITORY" \
             '.head_sha == $sha and .repository.full_name == $repo and .head_repository.full_name == $repo and
-             .event == "push" and .head_branch == "validation/shadow-fix-verified" and
-             .path == ".github/workflows/rendering-fix-verified.yml"' "$RUNNER_TEMP/aurora-run.json"
-          gh api "$root/jobs" --jq '.jobs[] | select(.name == "Stock Windows checks on the exact source") | .conclusion' | grep -Fxq success
+             .event == "push" and .head_branch == "validation/shading-final-head" and
+             .path == ".github/workflows/rendering-final-head.yml"' "$RUNNER_TEMP/aurora-run.json"
+          gh api "$root/jobs" --jq '.jobs[] | select(.name == "Build and verify the default Windows development package") | .conclusion' | grep -Fxq success
           gh api "$root/artifacts" > "$RUNNER_TEMP/aurora-artifacts.json"
           jq -e --arg name "Aurora-Viewer-rendering-test-$SOURCE_COMMIT" \
             --arg sha "$BUILD_WORKFLOW_COMMIT" --argjson run "$BUILD_RUN_ID" \

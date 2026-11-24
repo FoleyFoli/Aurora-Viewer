@@ -21,6 +21,26 @@ $result = [ordered]@{
     adapter = $null
 }
 New-Item -ItemType Directory -Path $output -Force | Out-Null
+Add-Type -AssemblyName System.Drawing
+function Measure-Frame([string]$path) {
+    $image = [Drawing.Bitmap]::new($path)
+    try {
+        $colors = [Collections.Generic.HashSet[int]]::new()
+        $light = 0
+        $count = 0
+        for ($y = [int]($image.Height * 0.2); $y -lt $image.Height * 0.8; $y += 4) {
+            for ($x = [int]($image.Width * 0.2); $x -lt $image.Width * 0.8; $x += 4) {
+                $c = $image.GetPixel($x, $y)
+                if ([Math]::Max($c.R,[Math]::Max($c.G,$c.B)) -gt 8) { $light++ }
+                $bin = (([int]$c.R -shr 4) -shl 8) -bor (([int]$c.G -shr 4) -shl 4) -bor ([int]$c.B -shr 4)
+                [void]$colors.Add($bin)
+                $count++
+            }
+        }
+        return @{ width = $image.Width; height = $image.Height; samples = $count; nonblack = $light; rgb_444_bins = $colors.Count
+            visual_nonuniform = $image.Width -ge 400 -and $image.Height -ge 280 -and $light -ge $count * 0.5 -and $colors.Count -ge 16 }
+    } finally { $image.Dispose() }
+}
 $proc = $null
 try {
     $zip = Join-Path $env:GITHUB_WORKSPACE "test-client/$name.zip"
@@ -96,7 +116,7 @@ try {
     $env:AURORA_RT_SHADOWS = '0'
     $env:AURORA_DEMO_UI_FEATURE = 'off'
     $env:AURORA_CAPTURE = $frame
-    $env:AURORA_CAPTURE_FRAMES = '650'
+    $env:AURORA_CAPTURE_FRAMES = '60,605,650'
     $env:AURORA_CAPTURE_EXIT = '1'
     $env:RUST_LOG = 'info'
     $started = Get-Date
@@ -105,7 +125,7 @@ try {
     $result.process_started = $true
     $result.pid = $proc.Id
     $noAdapter = 'Vulkan lists no graphics card after all retries|no native GPU adapter can present to the window'
-    $limit = [DateTime]::UtcNow.AddMinutes(45)
+    $limit = [DateTime]::UtcNow.AddMinutes(60)
     do {
         $exited = $proc.WaitForExit(3000)
         # Missing Vulkan often opens a native startup-error dialog indefinitely.
@@ -141,26 +161,9 @@ try {
     }
     $messages = $runtimeLog + [IO.File]::ReadAllText((Join-Path $output 'stderr.txt')) + [IO.File]::ReadAllText((Join-Path $output 'stdout.txt'))
     if ($messages -match 'wgpu error:|validation error|GPU device lost|panicked at') { throw "GPU or viewer error: $($Matches[0])" }
-    Add-Type -AssemblyName System.Drawing
-    $image = [Drawing.Bitmap]::new($frame)
-    try {
-        $colors = [Collections.Generic.HashSet[int]]::new()
-        $light = 0
-        $count = 0
-        for ($y = [int]($image.Height * 0.2); $y -lt $image.Height * 0.8; $y += 4) {
-            for ($x = [int]($image.Width * 0.2); $x -lt $image.Width * 0.8; $x += 4) {
-                $c = $image.GetPixel($x, $y)
-                if ([Math]::Max($c.R,[Math]::Max($c.G,$c.B)) -gt 8) { $light++ }
-                $bin = (([int]$c.R -shr 4) -shl 8) -bor (([int]$c.G -shr 4) -shl 4) -bor ([int]$c.B -shr 4)
-                [void]$colors.Add($bin)
-                $count++
-            }
-        }
-        $result.pixels = @{ width = $image.Width; height = $image.Height; samples = $count; nonblack = $light; rgb_444_bins = $colors.Count }
-        if ($image.Width -lt 400 -or $image.Height -lt 280 -or $light -lt $count * 0.5 -or $colors.Count -lt 16) {
-            throw 'The interior of the world capture is undersized, blank or nearly uniform'
-        }
-    } finally { $image.Dispose() }
+    $fullPath = Join-Path $output 'world-650.png'
+    $result.pixels = Measure-Frame $fullPath
+    if (!$result.pixels.visual_nonuniform) { throw 'The interior of frame 650 is undersized, blank or nearly uniform' }
     $result.status = 'passed'
 } catch {
     $result.detail = $_.Exception.Message
@@ -174,7 +177,33 @@ try {
             Select-Object TimeCreated,Id,ProviderName,Message
         $ev | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $output 'windows-application-faults.json') -Encoding utf8NoBOM
     }
-    if (Test-Path -LiteralPath $log) { Copy-Item -LiteralPath $log -Destination (Join-Path $output 'viewer.log') }
+    if (Test-Path -LiteralPath $log) {
+        $savedLog = Join-Path $output 'viewer.log'
+        Copy-Item -LiteralPath $log -Destination $savedLog
+        $runtimeLog = [IO.File]::ReadAllText($savedLog)
+        if ($runtimeLog -match 'GPU: ([^\r\n]+\(Vulkan, driver [^\r\n]+)') { $result.adapter = $Matches[1].Trim() }
+    }
+    # Every original PNG survives nonzero exit or timeout. The first request
+    # is an early diagnostic; frames 605 and 650 follow the demo's UI-off action.
+    $result.captures = foreach ($frameNumber in 60,605,650) {
+        $filename = "world-$frameNumber.png"
+        $rawPath = Join-Path $output $filename
+        $entry = [ordered]@{ request_frame = $frameNumber; file = $filename; present = (Test-Path -LiteralPath $rawPath -PathType Leaf) }
+        if ($entry.present) {
+            try {
+                $entry.sha256 = (Get-FileHash -LiteralPath $rawPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                $entry.pixels = Measure-Frame $rawPath
+                $captureLine = [regex]::Match($runtimeLog, "\bframe $frameNumber captured to ")
+                $entry.logged = $captureLine.Success
+                $before = if ($captureLine.Success) { $runtimeLog.Substring(0,$captureLine.Index) } else { '' }
+                $uiStates = [regex]::Matches($before,'interface: UI rendering feature (off|on)\b')
+                $entry.ui_off_logged = $uiStates.Count -gt 0 -and $uiStates[$uiStates.Count-1].Groups[1].Value -eq 'off'
+                $entry.world_only = $frameNumber -gt 600 -and $entry.logged -and $entry.ui_off_logged -and
+                    ($before -match 'demo soft shadows: [1-9]\d* prims') -and $entry.pixels.visual_nonuniform
+            } catch { $entry.measurement_error = $_.Exception.Message }
+        }
+        $entry
+    }
     $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $output 'result.json') -Encoding utf8NoBOM
     Get-Content -LiteralPath (Join-Path $output 'result.json')
     "Windows portable viewer, Mesa lavapipe software Vulkan: **$($result.status)**" >> $env:GITHUB_STEP_SUMMARY
