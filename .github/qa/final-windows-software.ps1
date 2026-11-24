@@ -91,6 +91,17 @@ try {
     $env:AURORA_CAPTURE_FRAMES = '650'
     $env:AURORA_CAPTURE_EXIT = '1'
     switch ($env:DIAGNOSTIC_MODE) {
+        'shader-override' {
+            $compiled = [IO.Path]::GetFullPath((Join-Path $env:GITHUB_WORKSPACE 'source/crates/aurora-render'))
+            $binary = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))
+            if ($binary.IndexOf($compiled, [StringComparison]::OrdinalIgnoreCase) -lt 0 -and
+                $binary.IndexOf($compiled.Replace('\','/'), [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+                throw "The viewer does not contain its expected shader source directory: $compiled"
+            }
+            $binary = $null
+            $env:AURORA_DEMO_WATER_SHADERS = '1'
+            $result.shader_source = $compiled
+        }
         'ordinary' { }
         'shadows-off' { $env:AURORA_SHADOWS = '0' }
         'wgpu-validation' { $env:AURORA_GPU_VALIDATION = '1' }

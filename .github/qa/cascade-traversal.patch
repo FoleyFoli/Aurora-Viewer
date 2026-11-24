@@ -1,0 +1,45 @@
+--- a/crates/aurora-render/src/shaders/common.wgsl
++++ b/crates/aurora-render/src/shaders/common.wgsl
+@@ -2762,23 +2762,25 @@
+             offset = mix(offset, cascade_normal_offset(cascade + 1u), t);
+         }
+     }
+-    // Sample one receiver in both maps, as the four-level layout does.
+-    // Separate normal offsets project a thin caster to two different edges.
+-    let receiver = world_pos + n * offset;
+-    var s = cascade_shadow(receiver, n, cascade);
+-    if (t > 0.0) {
+-        let next = cascade_shadow(receiver, n, cascade + 1u);
+-        if (s < 0.0) {
+-            s = next;
+-        } else if (next >= 0.0) {
+-            s = mix(s, next, t);
+-        }
+-    }
+-    // the mirror also sees behind the main camera, where the near cascades
+-    // do not reach: a coarser one that does
+-    if (planar) {
+-        for (var k = cascade + 1u; k < 3u && s < 0.0; k++) {
+-            s = cascade_shadow(world_pos + n * cascade_normal_offset(k), n, k);
++    // The overlap samples both maps at the same receiver. A planar
++    // reflection with no valid sample retries each coarser map at its own
++    // normal offset, including the overlap neighbour when necessary.
++    let band_maps = select(1u, 2u, t > 0.0);
++    let fallback_maps = select(0u, 2u - cascade, planar);
++    var s = -1.0;
++    for (var i = 0u; i < band_maps + fallback_maps; i++) {
++        var level = cascade + i;
++        var normal_offset = offset;
++        if (i >= band_maps) {
++            if (s >= 0.0) { break; }
++            level = cascade + 1u + (i - band_maps);
++            normal_offset = cascade_normal_offset(level);
++        }
++        let value = cascade_shadow(world_pos + n * normal_offset, n, level);
++        if (i == 1u && i < band_maps && s >= 0.0) {
++            if (value >= 0.0) { s = mix(s, value, t); }
++        } else {
++            s = value;
+         }
+     }
+     if (s < 0.0) {
