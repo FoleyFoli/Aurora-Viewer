@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 env:
-  SOURCE_COMMIT: f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0
-  SOURCE_TREE: 623f4f191845e083e87b80d912b55b5e9018c7e4
+  SOURCE_COMMIT: d1f4aff793db141cbade16dc47c0d035c471e797
+  SOURCE_TREE: 7c3884dbb3a06960547346a35a23ab37d213f12c
   APPROVED_COMMIT: 57d978f7a97d89c358fb40c838201d1c226ff84d
   CARGO_TERM_COLOR: always
 
@@ -248,8 +248,8 @@ jobs:
       matrix:
         include:
           - side: candidate
-            commit: 'f72bcfe3bd9bb59131cf92edcab4a2e2bd33a0f0'
-            tree: '623f4f191845e083e87b80d912b55b5e9018c7e4'
+            commit: 'd1f4aff793db141cbade16dc47c0d035c471e797'
+            tree: '7c3884dbb3a06960547346a35a23ab37d213f12c'
     env:
       SOURCE_COMMIT: ${{ matrix.commit }}
       SOURCE_TREE: ${{ matrix.tree }}
