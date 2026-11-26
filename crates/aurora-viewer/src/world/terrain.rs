@@ -47,7 +47,8 @@ pub struct Heightmap {
     pub size_x: u32,
     pub size_y: u32,
     pub heights: Vec<f32>,
-    pub patch_received: Vec<bool>,
+    // Zero until the first LayerData patch covering this 16 m square arrives.
+    patch_revisions: Vec<u64>,
     pub patches_x: u32,
 }
 
@@ -59,7 +60,7 @@ impl Heightmap {
             size_x,
             size_y,
             heights: vec![0.0; (size_x * size_y) as usize],
-            patch_received: vec![false; (patches_x * patches_y) as usize],
+            patch_revisions: vec![0; (patches_x * patches_y) as usize],
             patches_x,
         }
     }
@@ -80,7 +81,7 @@ impl Heightmap {
         let patches_y = self.size_y / 16;
         for y in 0..patches_y {
             for x in 0..self.patches_x {
-                grown.patch_received[(y * grown.patches_x + x) as usize] = self.patch_received[(y * self.patches_x + x) as usize];
+                grown.patch_revisions[(y * grown.patches_x + x) as usize] = self.patch_revisions[(y * self.patches_x + x) as usize];
             }
         }
         *self = grown;
@@ -107,8 +108,8 @@ impl Heightmap {
         for j in 0..pp.max(1) {
             for i in 0..pp.max(1) {
                 let idx = (py * pp + j) * self.patches_x + px * pp + i;
-                if let Some(r) = self.patch_received.get_mut(idx as usize) {
-                    *r = true;
+                if let Some(revision) = self.patch_revisions.get_mut(idx as usize) {
+                    *revision = revision.saturating_add(1);
                 }
             }
         }
@@ -129,21 +130,22 @@ impl Heightmap {
     }
 
     pub fn received_fraction(&self) -> f32 {
-        let n = self.patch_received.iter().filter(|r| **r).count();
-        n as f32 / self.patch_received.len().max(1) as f32
+        let n = self.patch_revisions.iter().filter(|r| **r != 0).count();
+        n as f32 / self.patch_revisions.len().max(1) as f32
     }
 
-    /// A height is usable as a neighbour edge only after its patch arrived.
-    pub fn received_height(&self, x: u32, y: u32) -> Option<f32> {
+    /// A new revision marks a new observation, even if the height stayed the same.
+    pub fn patch_revision(&self, x: u32, y: u32) -> Option<u64> {
         if x >= self.size_x || y >= self.size_y {
             return None;
         }
         let patch = (y / 16) * self.patches_x + x / 16;
-        self.patch_received
-            .get(patch as usize)
-            .copied()
-            .filter(|received| *received)
-            .map(|_| self.height(x as i32, y as i32))
+        self.patch_revisions.get(patch as usize).copied().filter(|revision| *revision != 0)
+    }
+
+    /// A height is usable as a neighbour edge only after its patch arrived.
+    pub fn received_height(&self, x: u32, y: u32) -> Option<f32> {
+        self.patch_revision(x, y).map(|_| self.height(x as i32, y as i32))
     }
 
     #[inline]
@@ -497,8 +499,21 @@ mod region_size_tests {
         assert_eq!(map.heights.len(), 1024 * 512);
         assert_eq!(map.heights[(3 * 16 * 1024 + 2 * 16) as usize], 7.0);
         assert_eq!(map.heights[(3 * 16 * 1024 + 2 * 16 + 15) as usize], 7.0);
-        assert!(map.patch_received[(3 * 64 + 2) as usize]);
-        assert_eq!(map.patch_received.iter().filter(|r| **r).count(), 1);
+        assert_eq!(map.patch_revision(32, 48), Some(1));
+        assert_eq!(map.patch_revisions.iter().filter(|r| **r != 0).count(), 1);
+    }
+
+    #[test]
+    fn precision_terrain_readback_tracks_only_the_received_patch() {
+        let mut map = Heightmap::new(256, 256);
+        assert_eq!(map.patch_revision(4, 6), None);
+        map.apply_patch(0, 0, 16, &[20.0; 256]);
+        map.apply_patch(1, 0, 16, &[22.0; 256]);
+        assert_eq!(map.patch_revision(4, 6), Some(1));
+        map.apply_patch(0, 0, 16, &[20.0; 256]);
+        assert_eq!(map.patch_revision(4, 6), Some(2));
+        assert_eq!(map.patch_revision(18, 6), Some(1));
+        assert_eq!(map.patch_revision(256, 0), None);
     }
 
     #[test]

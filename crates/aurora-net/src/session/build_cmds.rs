@@ -373,6 +373,7 @@ impl Session<'_> {
             }
             BuildCmd::ModifyLand {
                 handle,
+                reliable,
                 action,
                 brush_size,
                 seconds,
@@ -399,8 +400,7 @@ impl Session<'_> {
                     north,
                 }];
                 m.modify_block_extended = vec![modify_land::ModifyBlockExtended { brush_size }];
-                // brush strokes go out every frame: unreliable like LL's sendMessage
-                self.send(addr, &m, false);
+                self.send(addr, &m, reliable);
             }
             BuildCmd::UndoLand { handle } => {
                 let Some(addr) = self.sim_for_handle(handle) else { return };

@@ -6,6 +6,7 @@
 
 use super::draw::{Painter3d, rgba};
 use super::geom::Cam;
+use super::precision::{PrecisionMode, PrecisionTerrain, received_height};
 use super::{BuildSettings, REGION_FLAGS_BLOCK_TERRAFORM};
 use crate::world::World;
 use aurora_net::build::{BuildCmd, land_action};
@@ -35,6 +36,7 @@ const PARCEL_SEQ: i32 = aurora_net::build::BUILD_PARCEL_SEQ + 1000;
 
 #[derive(Debug, Default)]
 pub struct LandTool {
+    pub precision: PrecisionTerrain,
     /// Brush held: terrain height where it started (mStartingZ).
     brushing: Option<f32>,
     /// Point under the mouse (render space, rounded to the meter).
@@ -56,29 +58,52 @@ pub struct LandTool {
 
 /// Where the mouse ray meets the terrain (marching the height maps).
 pub fn terrain_hit(world: &World, o: Vec3, d: Vec3) -> Option<Vec3> {
+    terrain_intersection(o, d, false, |p| world.ground_height(p))
+}
+
+fn terrain_intersection(o: Vec3, d: Vec3, require_crossing: bool, height: impl Fn(Vec3) -> Option<f32>) -> Option<Vec3> {
     let mut prev = o;
+    let mut prev_below = if require_crossing { height(o).map(|h| o.z <= h) } else { None };
     let mut t = 0.0;
     let step = 0.5;
     while t < 512.0 {
         t += step;
         let p = o + d * t;
-        if let Some(h) = world.ground_height(p)
-            && p.z <= h
+        let below = height(p).map(|h| p.z <= h);
+        // A ray entering a loaded patch below the ground has not hit its surface.
+        if let Some(end_below) = below
+            && (if require_crossing {
+                prev_below == Some(!end_below)
+            } else {
+                end_below
+            })
         {
             // refine between the last two samples
             let (mut a, mut b) = (prev, p);
             for _ in 0..12 {
                 let m = (a + b) * 0.5;
-                match world.ground_height(m) {
-                    Some(hm) if m.z <= hm => b = m,
+                match height(m) {
+                    Some(hm) if (m.z <= hm) == end_below => b = m,
+                    None if require_crossing => return None,
                     _ => a = m,
                 }
             }
             return Some(b);
         }
         prev = p;
+        prev_below = below;
     }
     None
+}
+
+/// A precision pick always uses received ground, even beneath water or an object.
+fn precision_hit(world: &World, cam: &Cam, cursor: (f32, f32)) -> Option<Vec3> {
+    let handle = world.main_region?;
+    let origin = world.region_offset(handle)?;
+    let (eye, dir) = cam.ray(cursor.0, cursor.1);
+    let hit = terrain_intersection(eye, dir, true, |p| received_height(world, handle, (p - origin).truncate()))?;
+    let cell = (hit - origin).truncate().round();
+    Some(origin + cell.extend(received_height(world, handle, cell)?))
 }
 
 /// Region containing a render-space point, and that region's offset.
@@ -130,8 +155,14 @@ fn parcel_rect(a: Vec2, b: Vec2) -> (Vec2, Vec2) {
 
 impl LandTool {
     pub fn cancel(&mut self) {
+        self.set_precision_mode(PrecisionMode::Off);
+    }
+
+    pub fn set_precision_mode(&mut self, mode: PrecisionMode) {
         self.brushing = None;
         self.dragging = None;
+        self.hover = None;
+        self.precision.set_mode(mode);
     }
 
     /// Feedback still held by the land tool, including pending join refusals.
@@ -161,9 +192,20 @@ impl LandTool {
         hit: Option<Vec3>,
         target: Option<usize>,
         cursor: (f32, f32),
-        _out: &mut Vec<BuildCmd>,
+        out: &mut Vec<BuildCmd>,
     ) -> bool {
         self.message = None;
+        if self.precision.mode != PrecisionMode::Off {
+            if let Some(point) = precision_hit(world, cam, cursor) {
+                self.precision.pick(world, point);
+                if let Some(command) = self.precision.take_parcel_request() {
+                    out.push(command);
+                }
+            } else {
+                self.precision.message = Some(aurora_i18n::tr!("build-precision-pick-main").into());
+            }
+            return true;
+        }
         let (o, d) = cam.ray(cursor.0, cursor.1);
         // land under the mouse: the picked point when it is not an object
         let p = match (hit, target) {
@@ -223,6 +265,18 @@ impl LandTool {
         if std::mem::take(&mut self.request_parcel) {
             self.ask_parcel(world, out);
         }
+        if self.precision.mode != PrecisionMode::Off {
+            if self.precision.region.is_some() && self.precision.region != world.main_region {
+                self.cancel();
+                return;
+            }
+            self.hover = if over_ui || self.precision.b.is_some() {
+                None
+            } else {
+                precision_hit(world, cam, cursor)
+            };
+            return;
+        }
         let (o, d) = cam.ray(cursor.0, cursor.1);
         let hit = if over_ui && self.brushing.is_none() && self.dragging.is_none() {
             None
@@ -246,6 +300,7 @@ impl LandTool {
             let local = spot - off;
             out.push(BuildCmd::ModifyLand {
                 handle,
+                reliable: false,
                 action,
                 brush_size: size,
                 seconds,
@@ -306,6 +361,7 @@ impl LandTool {
             let b = (hi - off.truncate()).clamp(Vec2::ZERO, Vec2::new(w, h));
             out.push(BuildCmd::ModifyLand {
                 handle,
+                reliable: false,
                 action,
                 brush_size: s.land_brush_size.clamp(1.0, 11.0),
                 seconds,
@@ -342,6 +398,7 @@ impl LandTool {
 
     /// The answer to `ask_parcel`.
     pub fn on_selected_parcel(&mut self, handle: RegionHandle, sequence: i32, parcel: std::sync::Arc<aurora_net::ParcelInfo>) {
+        self.precision.on_parcel(handle, sequence, &parcel);
         if sequence == self.parcel_seq && !self.request_parcel && self.dragging.is_none() && self.selection.is_some() {
             self.parcel = Some((handle, parcel));
         }
@@ -427,6 +484,10 @@ impl LandTool {
     // ---- drawing
 
     pub fn draw(&self, p: &mut Painter3d, world: &World, s: &BuildSettings) {
+        if self.precision.mode != PrecisionMode::Off {
+            super::precision_overlay::draw(&self.precision, self.hover, p, world);
+            return;
+        }
         // brush (LLToolBrushLand::renderOverlay): white vertical lines on
         // every meter of the brush, taller in the middle and with the force
         if s.land_action <= land_action::REVERT
@@ -501,6 +562,53 @@ impl LandTool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn precision_ray_needs_a_surface_crossing_on_received_terrain() {
+        let loaded = |p: Vec3| (p.x >= 0.0 && p.x < 16.0).then_some(21.0);
+        assert!(terrain_intersection(Vec3::new(-1.0, 3.0, 10.0), Vec3::X, true, loaded).is_none());
+        let up = terrain_intersection(Vec3::new(4.0, 3.0, 10.0), Vec3::Z, true, loaded).unwrap();
+        assert!((up.z - 21.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn precision_clicks_pick_received_ground_without_running_the_active_brush() {
+        let (mut world, mut tool, handle) = join_fixture();
+        let parcel_selection = tool.selection;
+        let region = world.regions.get_mut(&handle).expect("demo region");
+        region.heightmap = crate::world::terrain::Heightmap::new(region.heightmap.size_x, region.heightmap.size_y);
+        region.heightmap.apply_patch(0, 0, 16, &[21.0; 256]);
+        let settings = BuildSettings {
+            land_action: land_action::RAISE,
+            ..Default::default()
+        };
+        let mut commands = Vec::new();
+        for mode in [PrecisionMode::Measure, PrecisionMode::SetHeight] {
+            tool.brushing = Some(21.0);
+            tool.set_precision_mode(mode);
+            for (x, y) in [(8.2, 9.3), (12.1, 11.2)] {
+                // The default inverse projection gives a straight downward ray.
+                let cam = Cam {
+                    eye: Vec3::new(x, y, 30.0),
+                    ..Default::default()
+                };
+                assert!(tool.mouse_down(&world, &settings, &cam, Some(Vec3::splat(99.0)), None, (0.5, 0.5), &mut commands));
+                tool.update(&world, &settings, &cam, (0.5, 0.5), false, 0.016, &mut commands);
+                tool.mouse_up();
+            }
+            assert_eq!(tool.precision.a, Some(Vec2::new(8.0, 9.0)));
+            assert_eq!(tool.precision.b, Some(Vec2::new(12.0, 11.0)));
+            let unloaded = Cam {
+                eye: Vec3::new(28.0, 28.0, 30.0),
+                ..Default::default()
+            };
+            tool.mouse_down(&world, &settings, &unloaded, None, None, (0.5, 0.5), &mut commands);
+            assert_eq!(tool.precision.a, Some(Vec2::new(8.0, 9.0)));
+            assert_eq!(tool.precision.b, Some(Vec2::new(12.0, 11.0)));
+            assert_eq!(tool.selection, parcel_selection);
+            assert!(commands.iter().all(|cmd| matches!(cmd, BuildCmd::ParcelRequest { .. })));
+        }
+    }
 
     fn join_fixture() -> (World, LandTool, RegionHandle) {
         let mut world = World::new(std::sync::Arc::new(crate::scene::avatar::AvatarLibrary::load()));

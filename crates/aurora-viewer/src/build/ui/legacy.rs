@@ -355,6 +355,7 @@ pub(super) fn body(
                     .show(ui, |ui| {
                         ui.set_width(width);
                         if tool.tool == Tool::Land {
+                            super::precision::panel(ui, p, tool, world, s);
                             tools::parcel_panel(ui, p, tool, world, s, env.property_lines);
                         } else {
                             ui.push_id(("legacy-build-panel", tab_index(tool.tab)), |ui| match tab_index(tool.tab) {

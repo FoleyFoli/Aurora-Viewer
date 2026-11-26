@@ -338,7 +338,16 @@ impl App {
             return true;
         }
         let ppp = self.egui_ctx.pixels_per_point();
-        ui::widgets::pointer_over_ui(&self.egui_ctx, egui::pos2(self.cursor_pos.0 / ppp, self.cursor_pos.1 / ppp))
+        let pos = egui::pos2(self.cursor_pos.0 / ppp, self.cursor_pos.1 / ppp);
+        // A move and press can arrive before egui processes the new pointer
+        // position. Editing a number or pressing Apply must keep the two anchors.
+        (self.build.open
+            && self.build.land.precision.mode != crate::build::precision::PrecisionMode::Off
+            && self
+                .egui_ctx
+                .layer_id_at(pos)
+                .is_some_and(|layer| layer.order != egui::Order::Background))
+            || ui::widgets::pointer_over_ui(&self.egui_ctx, pos)
     }
 
     /// A mouse button of the window, pressed or released: handled now, or

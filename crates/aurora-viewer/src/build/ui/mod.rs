@@ -29,6 +29,7 @@ mod mesh;
 mod name_focus;
 mod object;
 pub(crate) mod particles;
+mod precision;
 mod replace;
 mod second_tab;
 mod shape_preview;
@@ -748,6 +749,11 @@ pub fn show(
             crate::ui::widgets::size_floater(ctx, INSPECTOR_ID, size);
         }
         s.expanded = !s.expanded;
+    }
+    if tool.land.precision.mode != crate::build::precision::PrecisionMode::Off
+        && (!s.expanded || widgets::floater_minimized(ctx, INSPECTOR_ID))
+    {
+        tool.land.cancel();
     }
     floaters::secondary(ctx, p, tool, world, s, env);
     if env.demo

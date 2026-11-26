@@ -119,6 +119,14 @@ rectangle's reply, checks single-region bounds and requires `PARCEL_RESULT_MULTI
 before confirmation and sending. The simulator checks ownership/group/estate
 rights, following LLPanelLandInfo and LLViewerParcelMgr::startJoinLand.
 
+`build/precision.rs` holds the Precision Terrain draft for Measure and Set Height.
+It samples received ground in the current region and builds a bounded ModifyLand
+command on explicit Apply. The compact and legacy inspectors share
+`build/ui/precision.rs`. The profile and the world guides in
+`build/precision_overlay.rs` use the same height samples. A per-patch revision in
+`world/terrain.rs` lets the inspector distinguish later terrain observations
+from the cached height at the time of the request.
+
 Nonrigged alpha faces use the projected depth and world-AABB bias of
 `LLDrawable::updateDistance` and `LLFace::CompareDistanceGreater` (#2575),
 rather than one radial object distance. `scene/picking.rs::PickFace` caches

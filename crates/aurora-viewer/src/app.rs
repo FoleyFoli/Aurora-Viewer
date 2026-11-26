@@ -3946,6 +3946,17 @@ impl App {
     }
 
     fn on_app_event(&mut self, ev: NetEvent) {
+        if self.build.land.precision.mode != crate::build::precision::PrecisionMode::Off
+            && matches!(
+                &ev,
+                NetEvent::TeleportStarted { .. }
+                    | NetEvent::TeleportLocal { .. }
+                    | NetEvent::TeleportFinished { .. }
+                    | NetEvent::AgentMovementComplete { .. }
+            )
+        {
+            self.build.land.cancel();
+        }
         if matches!(&ev, NetEvent::AgentMovementComplete { .. })
             && let Some(recovery) = &mut self.follow_recovery
         {

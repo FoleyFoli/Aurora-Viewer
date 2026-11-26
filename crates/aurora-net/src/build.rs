@@ -227,6 +227,8 @@ pub enum BuildCmd {
     /// ModifyLand. Region-local rectangle (a point for the brush: west = east).
     ModifyLand {
         handle: RegionHandle,
+        /// Request circuit delivery for a discrete precision edit. Brush streams use best effort.
+        reliable: bool,
         action: u8,
         /// Real brush size (ModifyBlockExtended) and its legacy index.
         brush_size: f32,

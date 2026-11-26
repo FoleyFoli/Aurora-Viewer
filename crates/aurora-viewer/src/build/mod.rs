@@ -34,6 +34,8 @@ mod linking;
 pub mod manip;
 mod material_preview;
 pub mod mesh_physics;
+pub mod precision;
+mod precision_overlay;
 use material_preview::MaterialTabKey;
 pub mod materials;
 mod new_defaults;

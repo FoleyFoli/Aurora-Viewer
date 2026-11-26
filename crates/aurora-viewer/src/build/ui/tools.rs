@@ -5,6 +5,7 @@
 
 use super::common::{check, label, small};
 use super::{Confirm, Env, Request};
+use crate::build::precision::PrecisionMode;
 use crate::build::shapes::{grass_species, shapes, tree_species};
 use crate::build::{BuildSettings, BuildTool, EditMode, FocusMode, GrabMode, Mods, Tool};
 use crate::theme::Palette;
@@ -26,6 +27,8 @@ pub fn status_text(tool: &BuildTool, s: &BuildSettings, mods: Mods) -> &'static 
             EditMode::Move => aurora_i18n::tr!("build-ui-tools-drag-to-move-shift-drag-to-copy"),
         },
         Tool::Create => aurora_i18n::tr!("build-ui-tools-click-in-the-world-to-build"),
+        Tool::Land if tool.land.precision.mode == PrecisionMode::Measure => aurora_i18n::tr!("build-precision-measure-hint"),
+        Tool::Land if tool.land.precision.mode == PrecisionMode::SetHeight => aurora_i18n::tr!("build-precision-set-hint"),
         Tool::Land => {
             if s.land_action > land_action::REVERT {
                 aurora_i18n::tr!("build-ui-tools-click-and-drag-to-select-land")
@@ -249,13 +252,20 @@ pub fn land_panel(ui: &mut egui::Ui, p: &Palette, tool: &mut BuildTool, world: &
         if radio(
             ui,
             p,
-            s.land_action > land_action::REVERT,
+            tool.land.precision.mode == PrecisionMode::Off && s.land_action > land_action::REVERT,
             aurora_i18n::tr!("build-ui-tools-select-land"),
         ) {
+            tool.land.set_precision_mode(PrecisionMode::Off);
             s.land_action = 6;
         }
         for (i, n) in crate::build::land::action_names().iter().enumerate() {
-            if radio(ui, p, s.land_action as usize == i, n) {
+            if radio(
+                ui,
+                p,
+                tool.land.precision.mode == PrecisionMode::Off && s.land_action as usize == i,
+                n,
+            ) {
+                tool.land.set_precision_mode(PrecisionMode::Off);
                 s.land_action = i as u8;
             }
         }
@@ -284,7 +294,8 @@ pub fn land_panel(ui: &mut egui::Ui, p: &Palette, tool: &mut BuildTool, world: &
                 s.land_brush_force = 10f32.powf(lg);
             }
         });
-        let can_apply = s.land_action <= land_action::REVERT && tool.land.selection.is_some();
+        let can_apply =
+            tool.land.precision.mode == PrecisionMode::Off && s.land_action <= land_action::REVERT && tool.land.selection.is_some();
         if ui
             .add_enabled(
                 can_apply,

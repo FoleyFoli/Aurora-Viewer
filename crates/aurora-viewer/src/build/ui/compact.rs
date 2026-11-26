@@ -787,6 +787,7 @@ fn section_column(
                         Tool::Create => tools::create_panel(ui, p, s),
                         Tool::Land => {
                             tools::land_panel(ui, p, tool, world, s);
+                            super::precision::panel(ui, p, tool, world, s);
                             tools::parcel_panel(ui, p, tool, world, s, env.property_lines);
                         }
                         Tool::Edit => {}
